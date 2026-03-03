@@ -1,0 +1,169 @@
+---
+title: Managing Courses
+description: Import, browse, and organize your course library
+---
+
+Handhold stores all courses locally on your machine. You can import courses from URLs, browse your library, and manage your learning progress.
+
+## Course Library
+
+When you launch Handhold, you start at the course library—a grid view of all installed courses.
+
+**What you see:**
+- Course title and description
+- Progress indicator (percentage complete)
+- Last accessed timestamp
+- Course tags (if any)
+
+**Filtering and search:**
+- Search bar filters by course title
+- Tag filters show courses by category
+- Sort by: Recently accessed, Title (A-Z), Progress
+
+## Importing Courses
+
+Handhold supports importing courses from remote URLs.
+
+<Steps>
+  <Step title="Get a course URL">
+    Course authors publish courses as `.tar.gz` archives or GitHub repositories. You'll need a direct URL to the course package.
+  </Step>
+  
+  <Step title="Open the import dialog">
+    In the course library, click **Import Course** or use the keyboard shortcut `Cmd/Ctrl+I`.
+  </Step>
+  
+  <Step title="Enter the course URL">
+    Paste the URL into the dialog. Handhold supports:
+    - Direct `.tar.gz` URLs
+    - GitHub repository URLs (fetches the default branch)
+    - Custom course hosting endpoints
+  </Step>
+  
+  <Step title="Download and install">
+    Click **Import**. Handhold downloads the archive, extracts it to your courses directory, and adds it to your library.
+    
+    A progress indicator shows download status.
+  </Step>
+</Steps>
+
+<Info>
+Imported courses appear in your library immediately. If the course includes audio bundles, they're cached locally for offline playback.
+</Info>
+
+### Deep Link Importing
+
+You can also import courses via deep links from your browser:
+
+```
+handhold://import?url=https://example.com/courses/react-state.tar.gz
+```
+
+Clicking this link:
+1. Launches Handhold (if not already running)
+2. Opens the import dialog with the URL pre-filled
+3. Prompts you to confirm the import
+
+<Tip>
+Course authors can distribute courses by sharing deep links. Users click the link, and Handhold handles the rest.
+</Tip>
+
+## Course Storage Location
+
+Courses are stored in your home directory:
+
+<CodeGroup>
+
+```bash macOS/Linux
+~/handhold/courses/
+```
+
+```powershell Windows
+%USERPROFILE%\handhold\courses\
+```
+
+</CodeGroup>
+
+Each course lives in its own subdirectory with the structure:
+
+```
+courses/
+├── hash-maps/
+│   ├── course.yaml       # Manifest with metadata and step list
+│   ├── lessons/          # Lesson Markdown files
+│   ├── labs/             # Lab definitions and scaffolds
+│   └── audio/            # Pre-generated TTS audio (optional)
+└── react-state/
+    └── ...
+```
+
+## Managing Course Files
+
+You can manually add courses by:
+
+1. Creating a directory in `~/handhold/courses/`
+2. Adding a valid `course.yaml` manifest
+3. Adding lesson and lab files
+
+<Warning>
+If you manually modify course files while Handhold is running, you may need to restart the app or trigger a library refresh for changes to appear.
+</Warning>
+
+## Removing Courses
+
+To remove a course from your library:
+
+<Steps>
+  <Step title="Locate the course directory">
+    Open `~/handhold/courses/` in your file manager
+  </Step>
+  
+  <Step title="Delete the course folder">
+    Remove the entire directory for the course you want to delete
+  </Step>
+  
+  <Step title="Refresh the library">
+    Handhold watches the courses directory and will detect the deletion automatically
+  </Step>
+</Steps>
+
+<Info>
+Deleting a course removes all local files, including progress data. This action cannot be undone.
+</Info>
+
+## Course Progress Tracking
+
+Handhold tracks your progress for each course:
+
+- **Step completion**: Which lessons you've finished, which labs you've passed
+- **Last position**: Where you left off in a lesson (saved per step)
+- **Slide completions**: Which lesson slides you've completed
+
+Progress is stored in a local SQLite database at:
+
+```
+~/.local/share/com.handhold.app/  (macOS/Linux)
+%APPDATA%\com.handhold.app\       (Windows)
+```
+
+## Opening Courses Directly
+
+You can open a specific course step via deep link:
+
+```
+handhold://open/course-id/2
+```
+
+This launches Handhold and jumps to step 2 of the specified course. Useful for bookmarking specific lessons or linking from external tools.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Taking Courses" icon="book-open" href="/guides/taking-courses">
+    Learn how to navigate lessons and complete labs
+  </Card>
+  
+  <Card title="Course Authoring" icon="pen" href="/authoring/overview">
+    Create your own courses with the authoring DSL
+  </Card>
+</CardGroup>

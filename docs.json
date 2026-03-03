@@ -43,6 +43,7 @@
           {
             "group": "Using Handhold",
             "pages": [
+              "guides/managing-courses",
               "guides/taking-courses",
               "guides/navigating-lessons",
               "guides/working-with-labs",

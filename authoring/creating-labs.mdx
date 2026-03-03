@@ -69,21 +69,19 @@ The starting code. Everything inside this directory is copied to the learner's w
 
 The scaffold should be a **working skeleton** with holes. The learner fills the holes.
 
-<Accordion title="Scaffold Guidelines">
-  <AccordionItem title="Give them">
-    - Project structure (package.json, directory layout)
-    - Boilerplate they shouldn't waste time on (imports, config, server setup)
-    - Utility functions not related to the teaching point
-    - Database schemas or seed scripts
-    - Test files (they don't write tests — they pass them)
-    - Comments or TODO markers where they need to write code
-  </AccordionItem>
-  
-  <AccordionItem title="Leave blank">
-    - The core implementation (the thing the lesson just taught)
-    - Logic that requires understanding the concept
-    - Integration between components (if composition is the lesson)
-  </AccordionItem>
+<Accordion title="Give them">
+- Project structure (package.json, directory layout)
+- Boilerplate they shouldn't waste time on (imports, config, server setup)
+- Utility functions not related to the teaching point
+- Database schemas or seed scripts
+- Test files (they don't write tests — they pass them)
+- Comments or TODO markers where they need to write code
+</Accordion>
+
+<Accordion title="Leave blank">
+- The core implementation (the thing the lesson just taught)
+- Logic that requires understanding the concept
+- Integration between components (if composition is the lesson)
 </Accordion>
 
 ### The 80/20 Scaffold Rule
@@ -115,41 +113,34 @@ For standalone labs, use `workspace: fresh`. The scaffold is a clean start.
 
 ### Scaffolding Patterns
 
-<Accordion title="Scaffolding Strategies">
-  <AccordionItem title="The TODO pattern">
-    ```javascript
-    function createUser(name, email) {
-      // TODO: Insert into the users table and return the created row
-      // Hint: Use pool.query with parameterized values ($1, $2)
-    }
-    ```
-    Best for beginners.
-  </AccordionItem>
-  
-  <AccordionItem title="The stub pattern">
-    ```javascript
-    function createUser(name, email) {
-      throw new Error("Not implemented");
-    }
-    ```
-    Best for intermediate learners.
-  </AccordionItem>
-  
-  <AccordionItem title="The partial pattern">
-    ```javascript
-    app.get("/users", async (req, res) => {
-      // This endpoint is complete — use it as a reference
-      const { rows } = await pool.query("SELECT * FROM users");
-      res.json(rows);
-    });
-    
-    app.post("/users", async (req, res) => {
-      // TODO: Implement this endpoint
-      res.status(501).json({ error: "Not implemented" });
-    });
-    ```
-    Best when you want them to mirror existing code.
-  </AccordionItem>
+<Accordion title="The TODO pattern">
+```javascript
+function createUser(name, email) {
+  // TODO: Insert into the users table and return the created row
+  // Hint: Use pool.query with parameterized values ($1, $2)
+}
+```
+Best for beginners.
+</Accordion>
+
+<Accordion title="The stub pattern">
+```javascript
+function createUser(name, email) {
+  throw new Error("Not implemented");
+}
+```
+Best for intermediate learners.
+</Accordion>
+
+<Accordion title="The partial pattern">
+```javascript
+app.get("/users", async (req, res) => {
+  // This endpoint is complete — use it as a reference
+  const { rows } = await pool.query("SELECT * FROM users");
+  res.json(rows);
+});
+```
+Best when you want them to mirror existing code.
 </Accordion>
 
 ## Service Configuration
