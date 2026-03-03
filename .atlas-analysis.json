@@ -1,0 +1,155 @@
+{
+  "projectType": "saas",
+  "projectName": "Handhold",
+  "projectDescription": "Desktop app for narrated, animated programming courses with interactive labs",
+  "theme": "palm",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4f46e5",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/lessons",
+              "features/labs",
+              "features/presentations",
+              "features/tts-narration"
+            ]
+          },
+          {
+            "group": "Using Handhold",
+            "pages": [
+              "guides/taking-courses",
+              "guides/navigating-lessons",
+              "guides/working-with-labs",
+              "guides/keyboard-shortcuts"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Course Authoring",
+        "groups": [
+          {
+            "group": "Authoring Guide",
+            "pages": [
+              "authoring/overview",
+              "authoring/course-architecture",
+              "authoring/writing-lessons",
+              "authoring/creating-labs"
+            ]
+          },
+          {
+            "group": "DSL Reference",
+            "pages": [
+              "authoring/dsl/triggers",
+              "authoring/dsl/visualization-blocks",
+              "authoring/dsl/animations",
+              "authoring/dsl/regions"
+            ]
+          },
+          {
+            "group": "Visualization Types",
+            "pages": [
+              "authoring/visualizations/code",
+              "authoring/visualizations/data-structures",
+              "authoring/visualizations/diagrams",
+              "authoring/visualizations/charts",
+              "authoring/visualizations/math",
+              "authoring/visualizations/previews"
+            ]
+          },
+          {
+            "group": "Best Practices",
+            "pages": [
+              "authoring/best-practices/narration",
+              "authoring/best-practices/choreography",
+              "authoring/best-practices/presentation-design",
+              "authoring/best-practices/verification"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/setup",
+              "development/architecture",
+              "development/building",
+              "development/contributing"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/frontend",
+              "development/backend",
+              "development/parser",
+              "development/presentation-engine"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Type Definitions",
+            "pages": [
+              "api/course",
+              "api/lesson",
+              "api/lab",
+              "api/visualization"
+            ]
+          },
+          {
+            "group": "Tauri Commands",
+            "pages": [
+              "api/commands/course",
+              "api/commands/lab",
+              "api/commands/tts",
+              "api/commands/container"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Narrated lessons with synchronized animations",
+    "Interactive labs with real editors and services",
+    "Built-in text-to-speech synthesis",
+    "Rich visualization types (code, data structures, diagrams)",
+    "Course authoring DSL with animation triggers",
+    "Container-based lab environments",
+    "Cross-platform desktop application"
+  ],
+  "publicApiSurface": [
+    "Course type definition",
+    "Lesson type definition",
+    "Lab type definition",
+    "ParsedLesson interface",
+    "ParsedLab interface",
+    "Trigger verbs (show, hide, transform, focus, annotate, zoom)",
+    "Visualization blocks (code, data, diagram, math, chart, preview)",
+    "Animation effects (fade, slide, grow, typewriter)",
+    "Data structure types (array, tree, graph, linked-list, stack, queue)",
+    "Tauri invoke handlers (course sync, lab lifecycle, TTS synthesis)",
+    "Course authoring DSL syntax"
+  ]
+}
