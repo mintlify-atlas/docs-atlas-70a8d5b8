@@ -1,0 +1,335 @@
+---
+title: 'Lessons'
+description: 'Create animated, narrated programming courses with synchronized visuals'
+icon: 'presentation'
+---
+
+Lessons in Handhold are narrated, animated presentations that teach programming concepts through synchronized visuals and audio. Each lesson is authored in a custom Markdown format that compiles into an interactive presentation with precise timing control.
+
+## Lesson Structure
+
+A lesson consists of **steps** (top-level sections) that contain narration blocks and visualization blocks. Each step is a self-contained teaching unit with its own scenes and animations.
+
+```markdown
+---
+title: Binary Search Trees
+---
+
+# Introduction
+
+A {{binary search tree}} maintains the invariant that {{show: tree}} left children are smaller than their parent.
+
+```data:tree type=tree variant=bst
+     8
+   /   \
+  3     10
+ /  \     \
+1    6    14
+```
+```
+
+### Key Components
+
+<AccordionGroup>
+  <Accordion title="Frontmatter">
+    YAML frontmatter at the top of the file defines the lesson title and metadata.
+  </Accordion>
+
+  <Accordion title="Steps (H1 Headings)">
+    Each `#` heading creates a new step. Steps are the primary navigation units in the presentation.
+  </Accordion>
+
+  <Accordion title="Narration Paragraphs">
+    Regular text paragraphs become narration. Text inside `{{...}}` markers creates trigger points for animations.
+  </Accordion>
+
+  <Accordion title="Visualization Blocks">
+    Code fences with special language identifiers (`code`, `data`, `diagram`, `math`, `chart`, `preview`) define visual elements.
+  </Accordion>
+</AccordionGroup>
+
+## Visualization Types
+
+Handhold supports rich visualization blocks that render programming concepts:
+
+### Code Blocks
+
+Standard code blocks with syntax highlighting, focus ranges, and inline annotations:
+
+```markdown
+```javascript:quicksort lang=javascript
+function quicksort(arr) {
+  if (arr.length <= 1) return arr; // ! Base case
+  const pivot = arr[0];
+  return [...quicksort(left), pivot, ...quicksort(right)];
+}
+```
+```
+
+**Parameters:**
+- `:name` - Named identifier for show/hide triggers
+- `lang=` - Language for syntax highlighting
+- `// !` - Inline annotations (appear as callouts)
+
+### Data Structures
+
+Visualize dynamic data structures with the `data` block type:
+
+```markdown
+```data:tree type=tree variant=bst
+     5
+   /   \
+  3     8
+ /  \   / \
+1    4 6   9
+```
+```
+
+**Supported structures:** `array`, `linked-list`, `tree`, `graph`, `stack`, `queue`, `hash-map`, `skip-list`, `b-tree`, `trie`, `bloom-filter`, and more (see src/types/lesson.ts:162-395).
+
+**Tree variants:** `bst`, `avl`, `red-black`, `heap-min`, `heap-max`, `splay`, `segment`, `merkle`
+
+### System Diagrams
+
+Create architecture diagrams with nodes and edges:
+
+```markdown
+```diagram:arch
+client -> api-gateway: HTTP Request
+api-gateway -> service: gRPC
+service -> database: Query
+```
+```
+
+**Node types:** `client`, `service`, `database`, `cache`, `queue`, `load-balancer`, `api-gateway`
+
+### Mathematical Expressions
+
+Render LaTeX equations:
+
+```markdown
+```math:formula
+T(n) = 2T(n/2) + O(n)
+T(n) = O(n \\log n)
+```
+```
+
+### Charts
+
+Data visualization with multiple chart types:
+
+```markdown
+```chart:performance type=line
+runtime:
+  - label: "n=10", value: 0.5
+  - label: "n=100", value: 5.2
+  - label: "n=1000", value: 52.1
+```
+```
+
+**Chart types:** `bar`, `line`, `scatter`, `area`, `pie`, `radar`, `radial`
+
+### Live Previews
+
+Render HTML or React components:
+
+```markdown
+```preview:demo template=react
+import { useState } from 'react';
+export default () => {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+};
+```
+```
+
+## Animation Triggers
+
+Narration text contains triggers that control what appears on screen and when. Triggers are embedded in `{{...}}` markers.
+
+### Show/Hide Verbs
+
+```markdown
+First we {{show: array slide 0.5s}} create an array.
+Then {{hide: array fade}} we remove it.
+```
+
+**Syntax:** `{{verb: target [effect] [duration] [easing]}}`
+
+**Available effects:** `fade`, `slide`, `slide-up`, `grow`, `typewriter`, `none`
+
+**Easing functions:** `ease-out`, `ease-in-out`, `spring`, `linear`
+
+### Control Verbs
+
+<CardGroup cols={2}>
+  <Card title="show / hide" icon="eye">
+    Display or remove a visualization block
+  </Card>
+  <Card title="show-group / hide-group" icon="layer-group">
+    Control multiple blocks simultaneously
+  </Card>
+  <Card title="transform" icon="wand-magic-sparkles">
+    Morph one visualization into another
+  </Card>
+  <Card title="clear" icon="eraser">
+    Remove all visible blocks
+  </Card>
+  <Card title="split / unsplit" icon="columns">
+    Toggle side-by-side layout
+  </Card>
+  <Card title="focus" icon="crosshairs">
+    Highlight a region within a block
+  </Card>
+  <Card title="annotate" icon="message">
+    Add a callout to a region
+  </Card>
+  <Card title="pulse / trace" icon="signal">
+    Visual emphasis effects
+  </Card>
+  <Card title="zoom" icon="magnifying-glass">
+    Scale a visualization
+  </Card>
+</CardGroup>
+
+### Transform Example
+
+```markdown
+We start with an unsorted {{show: unsorted}} array.
+After sorting, it becomes {{transform: unsorted -> sorted}} this.
+
+```data:unsorted type=array
+[5, 2, 8, 1, 9]
+```
+
+```data:sorted type=array
+[1, 2, 5, 8, 9]
+```
+```
+
+## Regions and Focus
+
+Visualization blocks can define named **regions** that enable fine-grained animation control:
+
+```markdown
+```javascript:code
+function search(arr, target) {
+  // #region loop
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] === target) return i;
+  }
+  // #endregion
+  return -1;
+}
+```
+
+The {{focus: loop}} loop iterates through the array.
+```
+
+Regions work with `focus`, `annotate`, `pulse`, `trace`, `pan`, and `draw` verbs.
+
+## Scene System
+
+The parser compiles narration and triggers into a **scene sequence**. Each trigger advances to the next scene. Scenes define:
+
+- Which visualization slots are visible
+- Transition effects (fade, slide, instant)
+- Enter/exit animations per slot
+- Focus, pulse, trace, and annotation state
+- Transform sources and targets
+
+Scenes are computed at parse time (see src/parser/build-scenes.ts) and drive the presentation renderer.
+
+## Playback Integration
+
+Lessons integrate with the TTS narration system:
+
+1. Parser extracts narration text from all paragraphs
+2. TTS synthesizes audio with word-level timing data
+3. Timeline builder (src/presentation/build-timeline.ts) maps trigger points to audio timestamps
+4. Playback orchestrator advances scenes synchronized with audio playback
+
+The presentation store (src/presentation/store.ts) manages:
+- Current step index
+- Current scene index
+- Current word index (for highlighting)
+- Playback status (idle, playing, paused)
+- Playback rate
+
+## Diagnostics
+
+The parser validates lessons and emits warnings for:
+
+- Unknown block targets in show/hide verbs
+- Unknown regions in focus/annotate verbs
+- Transform operations between incompatible block types
+- Narration paragraphs with no visual triggers
+- Steps with visuals but no narration
+
+Diagnostics include precise location information (step, paragraph, trigger index) for debugging.
+
+## Best Practices
+
+<Steps>
+  <Step title="One concept per step">
+    Each H1 section should teach a single, focused idea. Steps are the natural navigation boundary.
+  </Step>
+  
+  <Step title="Name your blocks">
+    Use explicit names (`:name`) instead of relying on auto-generated names for clarity.
+  </Step>
+  
+  <Step title="Use regions for code focus">
+    Define `#region` markers in code to enable precise highlighting without duplicating blocks.
+  </Step>
+  
+  <Step title="Coordinate animations with narration">
+    Place triggers at natural speech boundaries. Use `slide` for spatial reveals, `fade` for concept transitions.
+  </Step>
+  
+  <Step title="Test transform pairs">
+    Ensure transform source and target have compatible structures (same visualization kind).
+  </Step>
+</Steps>
+
+## Example Lesson
+
+```markdown
+---
+title: Quick Sort Visualization
+---
+
+# Algorithm Overview
+
+Quicksort is a {{show: code slide}} divide-and-conquer algorithm that {{focus: partition}} partitions the array around a pivot.
+
+```javascript:code lang=javascript
+function quicksort(arr, lo, hi) {
+  if (lo >= hi) return;
+  // #region partition
+  const p = partition(arr, lo, hi);
+  // #endregion
+  quicksort(arr, lo, p - 1);
+  quicksort(arr, p + 1, hi);
+}
+```
+
+# Visual Example
+
+```markdown
+{{clear fade}} Let's {{show: unsorted slide-up}} sort this array.
+
+\`\`\`data:unsorted type=array
+[7, 2, 1, 6, 8, 5, 3, 4]
+\`\`\`
+
+After partitioning around pivot 4, we get {{transform: unsorted -> partitioned spring}}.
+
+\`\`\`data:partitioned type=array
+[2, 1, 3, 4, 7, 6, 8, 5]
+\`\`\`
+```
+
+<Note>
+Lesson Markdown files are parsed by `src/parser/parse-lesson.ts` into a typed IR (`ParsedLesson`) that enforces structural validity and enables compile-time guarantees.
+</Note>

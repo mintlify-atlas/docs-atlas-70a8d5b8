@@ -1,0 +1,531 @@
+---
+title: Triggers
+description: Complete reference for trigger verbs in the Handhold DSL
+---
+
+Triggers are inline commands in narration using double-brace syntax: `{{verb: arguments}}`. They fire at the word position where they appear in the text. TTS timing aligns trigger execution to the spoken narration.
+
+## Visibility Control
+
+### show
+
+Reveal a named visualization block on stage.
+
+```markdown
+{{show: block-name}}
+{{show: block-name slide 0.5s ease-out}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Block name. Must match a named block defined in the same step. |
+| animation | tokens | No | Optional effect, duration, easing. See [Animations](/authoring/dsl/animations). |
+
+**Behavior:**
+- **In split mode:** Appends block alongside existing blocks. Deduplicates if already shown.
+- **In normal mode:** Replaces whatever is currently displayed.
+
+**Example:**
+```markdown
+{{show: hash-fn typewriter 2s linear}} Here's our hash function.
+```
+
+---
+
+### show-group
+
+Reveal multiple blocks at once.
+
+```markdown
+{{show-group: block-a,block-b fade 0.4s}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| targets | string | Yes | Comma-separated block names (no spaces). |
+| animation | tokens | No | Applied to all targets. |
+
+**Use when:** The concept requires simultaneous context, not sequential buildup.
+
+**Example:**
+```markdown
+{{show-group: input-tree,output-tree grow 0.5s spring}} Here's the before and after.
+```
+
+---
+
+### hide
+
+Remove a named block from stage.
+
+```markdown
+{{hide: block-name}}
+{{hide: block-name fade 0.3s}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Block name. |
+| animation | tokens | No | Optional exit animation. |
+
+**Behavior:**
+- If the block isn't currently shown, silently does nothing.
+
+**Example:**
+```markdown
+{{hide: old-code fade 0.3s}} Let's remove the previous version.
+```
+
+---
+
+### hide-group
+
+Remove multiple blocks at once.
+
+```markdown
+{{hide-group: block-a,block-b fade 0.3s}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| targets | string | Yes | Comma-separated block names (no spaces). |
+| animation | tokens | No | Applied to all targets. |
+
+**Example:**
+```markdown
+{{hide-group: diagram-a,diagram-b}} Clear the comparison.
+```
+
+---
+
+### clear
+
+Remove all blocks and reset the entire scene. Hard scene break.
+
+```markdown
+{{clear}}
+{{clear: slide}}
+{{clear: fade 0.5s ease-in-out}}
+{{clear: instant}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| transition | fade \| slide \| instant | No | Transition style. Default: `fade`. |
+| animation | tokens | No | Optional duration and easing override. |
+
+**What clear resets:**
+- Slots (all visible blocks)
+- Focus
+- Flow
+- Annotations
+- Zoom (back to 1x)
+- Pulse
+- Trace
+- Pan
+- Draw
+- Epoch (incremented)
+
+**Use between conceptual sections, not within a section.**
+
+**Example:**
+```markdown
+{{zoom: 1x}} {{focus: none}} That's the complete picture.
+
+{{clear: slide}}
+
+{{show: next-thing}} Now let's look at...
+```
+
+---
+
+### transform
+
+Morph one block into another with visual continuity.
+
+```markdown
+{{transform: block-a->block-b fade 0.4s}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| from->to | string | Yes | Source and destination block names, separated by `->`. |
+| animation | tokens | No | Optional animation tokens. |
+
+**Use when:** Two views are logically the same concept evolving (e.g., abstract diagram becoming concrete, tree before/after rotation).
+
+**Example:**
+```markdown
+{{focus: unbalanced}} This node is unbalanced.
+{{transform: avl-v0->avl-v1}} A right rotation fixes it.
+```
+
+---
+
+## Layout Control
+
+### split
+
+Enable multi-panel mode. Subsequent `show` commands add blocks side-by-side.
+
+```markdown
+{{split}}
+```
+
+**Parameters:** None.
+
+**Behavior:**
+- Stays active until `{{unsplit}}` or `{{clear}}`.
+- Maximum two panels.
+- Convention: left = code/explanation, right = visual/preview.
+
+**Example:**
+```markdown
+{{split}} {{show: source slide 0.3s}} {{show: preview slide 0.5s spring}} Here's the code and what it produces.
+```
+
+---
+
+### unsplit
+
+Return to single-panel mode. Keeps only the last-shown block.
+
+```markdown
+{{unsplit}}
+```
+
+**Parameters:** None.
+
+**Example:**
+```markdown
+{{unsplit}} Now just the code.
+```
+
+---
+
+## Attention Control
+
+### focus
+
+Highlight a specific region within a block. Everything else dims.
+
+```markdown
+{{focus: region-name}}
+{{focus: none}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | A region name defined in the block's region footer, or `none`. |
+
+**Behavior:**
+- Only one focus active at a time. New focus replaces previous.
+- `none` clears focus (everything returns to normal brightness).
+- Focus persists across paragraphs until changed.
+
+**Example:**
+```markdown
+{{focus: signature}} It takes a string and returns a number.
+{{focus: loop}} The loop processes each character.
+{{focus: none}} Step back and look at the whole function.
+```
+
+---
+
+### pulse
+
+Briefly emphasize a region without changing focus state.
+
+```markdown
+{{pulse: region-name}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Region name. |
+
+**Behavior:**
+- Visual flash/emphasis effect with a sound cue.
+- Does not alter the current focus.
+- Use to call out a detail in passing.
+
+**Example:**
+```markdown
+{{pulse: swap-pair}} Compare parent and child.
+```
+
+---
+
+### trace
+
+Animate a path through edges or connections in a data structure or diagram.
+
+```markdown
+{{trace: path-region}}
+{{trace: none}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Region name representing a path (edges between nodes), or `none`. |
+
+**Use for:**
+- Showing request flow through a system
+- Algorithm traversal paths
+
+**Example:**
+```markdown
+{{trace: request-path}} The request flows from client to gateway to service.
+{{trace: none}} Clear the trace.
+```
+
+---
+
+### annotate
+
+Attach a text label to a region. Renders as a floating callout.
+
+```markdown
+{{annotate: region-name "Explanation text"}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Region name. |
+| text | string | Yes | Quoted string. Keep to 2-5 words. |
+
+**Behavior:**
+- Annotations persist until the next `{{clear}}`.
+- One annotation per target. Re-annotating the same target replaces the previous text.
+
+**Example:**
+```markdown
+{{annotate: region-name "Greedy choice"}} This is the key step.
+```
+
+---
+
+### zoom
+
+Scale the visualization. Centers on the targeted region.
+
+```markdown
+{{zoom: 1.2x}}
+{{zoom: region-name 1.5x}}
+{{zoom: 1x}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| scale | string | Yes | Multiplier in `Nx` format: `0.5x`, `1x`, `1.2x`, `1.3x`, `2x`, etc. |
+| target | string | No | Optional region name. If omitted, scales the whole block. |
+
+**Zoom scales:**
+
+| Scale | Purpose |
+|-------|----------|
+| `0.8x` | Zoom out to show more context (rare) |
+| `1x` | Normal. Full block visible. Reset between focus jumps. |
+| `1.1x` | Slight emphasis on current context |
+| `1.2x` | Standard zoom for code walkthrough |
+| `1.3x` | Dramatic zoom for critical moments |
+| `1.5x+` | Extreme single-line emphasis (rare) |
+
+**Best practices:**
+- Any code block over 15 lines MUST have zoom choreography.
+- Always reset to `1x` before jumping to a distant region.
+- `1x` resets to normal scale.
+
+**Example:**
+```markdown
+{{focus: pick}} Now the key step. {{zoom: 1.2x}} Pick the unvisited node.
+{{zoom: 1x}} {{focus: return-val}} {{zoom: 1.2x}} Down at the bottom, the return value.
+```
+
+---
+
+### flow
+
+Mark a path or set of elements as "active." Used in data structures and diagrams to show execution flow.
+
+```markdown
+{{flow: path-name}}
+{{flow: none}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Region name representing a path (node IDs, edge set), or `none`. |
+
+**Use for:**
+- Algorithm traces
+- Request flows
+- Data movement
+
+**Example:**
+```markdown
+{{flow: obvious-path}} A to B costs 4, B to D costs 3, D to F costs 5.
+{{flow: none}} Clear the flow.
+```
+
+---
+
+### pan
+
+Translate the viewport to center on a named region.
+
+```markdown
+{{pan: region-name}}
+{{pan: none}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Region name to center on, or `none`. |
+
+**Behavior:**
+- Orthogonal to zoom — pan translates, zoom scales. They compose when both active.
+- `none` resets pan (center on default position).
+
+**Use for:**
+- Navigating large visualizations (wide diagrams, long code blocks).
+- Pan and zoom can be combined: `{{pan: far-region}} {{zoom: 1.3x}}`
+
+**Example:**
+```markdown
+{{pan: far-cluster}} {{zoom: 1.3x}} Now look at this distant cluster.
+{{pan: none}} {{zoom: 1x}} Step back to see the full picture.
+```
+
+---
+
+### draw
+
+Animate edges drawing themselves like a pen stroke. One-shot effect (not looping like flow/trace).
+
+```markdown
+{{draw: region-name}}
+{{draw: none}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Region name representing edges to draw, or `none`. |
+
+**Behavior:**
+- Edges animate from source to target with a trailing arrowhead that fades in after the stroke completes.
+- Unlike `flow` (looping dash animation) or `trace` (highlighted path), `draw` is a one-shot reveal.
+
+**Use for:**
+- Revealing graph connections one at a time
+- Algorithm edge discovery
+- Building up a path incrementally
+
+**Example:**
+```markdown
+{{draw: edge-a-b}} First, connect A to B.
+{{draw: edge-b-c}} Then B to C.
+{{draw: none}} {{flow: full-path}} Now the full path is flowing.
+```
+
+---
+
+## Sequence Control
+
+### play
+
+Execute a named sequence block and expand its output into the narration stream.
+
+```markdown
+{{play: seq-name}}
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| target | string | Yes | Name of a `seq` block defined in the same step. |
+
+**Behavior:**
+- Expands at parse time into interleaved narration text and triggers.
+- Generator runs once during parsing, output is static.
+
+**Example:**
+```markdown
+{{show: my-graph grow 0.5s spring}} Here's our graph.
+
+{{play: bfs-walk}} Watch BFS in action.
+
+{{focus: none}} {{zoom: 1x}} That's the complete traversal.
+```
+
+See the sequence blocks documentation for authoring `seq` blocks.
+
+---
+
+### advance
+
+Bare text triggers or explicit `{{advance}}`. Creates a timeline marker without a visual change.
+
+```markdown
+{{advance}}
+{{This text is spoken and advances the scene}}
+```
+
+**Note:** In practice, verb triggers replace advance for all modern courses. This is primarily for backward compatibility.
+
+---
+
+## TypeScript Definition
+
+From `src/types/lesson.ts`:
+
+```typescript
+export type TriggerVerb =
+  | { readonly verb: "show"; readonly target: string; readonly animation: AnimationOverride }
+  | { readonly verb: "show-group"; readonly targets: readonly string[]; readonly animation: AnimationOverride }
+  | { readonly verb: "hide"; readonly target: string; readonly animation: AnimationOverride }
+  | { readonly verb: "hide-group"; readonly targets: readonly string[]; readonly animation: AnimationOverride }
+  | { readonly verb: "transform"; readonly from: string; readonly to: string; readonly animation: AnimationOverride }
+  | { readonly verb: "clear"; readonly transition: TransitionKind; readonly animation: AnimationOverride }
+  | { readonly verb: "split" }
+  | { readonly verb: "unsplit" }
+  | { readonly verb: "focus"; readonly target: string }
+  | { readonly verb: "pulse"; readonly target: string }
+  | { readonly verb: "trace"; readonly target: string }
+  | { readonly verb: "annotate"; readonly target: string; readonly text: string }
+  | { readonly verb: "zoom"; readonly scale: number; readonly target: string }
+  | { readonly verb: "flow"; readonly target: string }
+  | { readonly verb: "pan"; readonly target: string }
+  | { readonly verb: "draw"; readonly target: string }
+  | { readonly verb: "play"; readonly target: string }
+  | { readonly verb: "advance" };
+```

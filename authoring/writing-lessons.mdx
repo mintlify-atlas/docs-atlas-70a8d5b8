@@ -1,0 +1,582 @@
+---
+title: Writing Lessons
+description: Master the DSL, triggers, visualization blocks, and narration craft
+---
+
+Lessons are narrated presentations where every visual change is synchronized to spoken words. This guide covers the complete authoring DSL.
+
+## Lesson File Structure
+
+A lesson is Markdown with three structural elements:
+
+<Steps>
+  <Step title="Frontmatter">
+    YAML at the top (`---` delimited), contains `title`
+    ```yaml
+    ---
+    title: How Hash Maps Work
+    ---
+    ```
+  </Step>
+  
+  <Step title="Steps">
+    H1 headings (`# Step Name`). Everything between one H1 and the next is one step.
+    ```markdown
+    # The problem
+    
+    Narration and code blocks for this step...
+    
+    # The solution
+    
+    Narration and code blocks for this step...
+    ```
+  </Step>
+  
+  <Step title="Content">
+    Narration paragraphs and visualization blocks, interleaved within a step.
+  </Step>
+</Steps>
+
+## Triggers
+
+Triggers are inline commands in narration using double-brace syntax: `{{verb: arguments}}`. They fire at the word position where they appear in the text.
+
+### show
+
+Reveal a named visualization block on stage.
+
+```markdown
+{{show: block-name}}
+{{show: block-name slide 0.5s ease-out}}
+```
+
+- **target**: Block name (required)
+- **animation**: Optional effect, duration, easing
+- **In split mode**: Appends block alongside existing blocks
+- **In normal mode**: Replaces whatever is currently displayed
+
+### focus
+
+Highlight a specific region within a block. Everything else dims.
+
+```markdown
+{{focus: region-name}}
+{{focus: none}}
+```
+
+- **target**: A region name defined in the block's region footer
+- **none**: Clears focus (everything returns to normal brightness)
+- Only one focus active at a time
+
+### clear
+
+Remove all blocks and reset the entire scene. Hard scene break.
+
+```markdown
+{{clear}}
+{{clear: slide}}
+{{clear: fade 0.5s ease-in-out}}
+{{clear: instant}}
+```
+
+- **transition**: `fade` (default), `slide`, or `instant`
+- **animation**: Optional duration and easing override
+- Use between conceptual sections, not within a section
+
+### annotate
+
+Attach a text label to a region. Renders as a floating callout.
+
+```markdown
+{{annotate: region-name "Explanation text"}}
+```
+
+- **target**: Region name (required)
+- **text**: Quoted string (required). Keep to 2-5 words
+- Annotations persist until the next `{{clear}}`
+
+<Warning>
+Annotation text should be 2-5 words. Intent labels: "The invariant", "Greedy choice" — not full sentences.
+</Warning>
+
+### zoom
+
+Scale the visualization. Centers on the targeted region.
+
+```markdown
+{{zoom: 1.2x}}
+{{zoom: region-name 1.5x}}
+{{zoom: 1x}}
+```
+
+- **scale**: Multiplier in `Nx` format: `0.5x`, `1x`, `1.2x`, `1.3x`, `2x`
+- **target**: Optional region name
+- `1x` resets to normal scale
+
+<Tip>
+**The 15-line rule:** Any code block over 15 lines REQUIRES zoom choreography. Pattern: 1x overview, 1.2x on focus, 1x reset, repeat.
+</Tip>
+
+### split / unsplit
+
+Enable multi-panel mode for side-by-side comparisons.
+
+```markdown
+{{split}}
+{{show: code-block}}
+{{show: data-view}}
+```
+
+```markdown
+{{unsplit}}
+```
+
+- `split` stays active until `unsplit` or `clear`
+- Max 2 panels (left=code, right=visual)
+
+### More Triggers
+
+<Accordion title="pulse">
+Briefly emphasize a region without changing focus
+```markdown
+{{pulse: region-name}}
+```
+</Accordion>
+
+<Accordion title="trace">
+Animate a path through edges or connections
+```markdown
+{{trace: path-region}}
+{{trace: none}}
+```
+</Accordion>
+
+<Accordion title="transform">
+Morph one block into another with visual continuity
+```markdown
+{{transform: block-a->block-b fade 0.4s}}
+```
+</Accordion>
+
+<Accordion title="show-group / hide-group">
+Reveal or remove multiple blocks at once
+```markdown
+{{show-group: block-a,block-b fade 0.4s}}
+{{hide-group: block-a,block-b}}
+```
+</Accordion>
+
+## Animation Tokens
+
+Animation tokens trail the target in `show`, `hide`, and `clear` triggers.
+
+```markdown
+{{show: hash-fn slide 0.5s ease-out}}
+         ^target ^effect ^dur  ^easing
+```
+
+### Effects
+
+| Effect | Enter Behavior | Exit Behavior | Best For |
+|--------|----------------|---------------|----------|
+| `fade` | Opacity 0→1 | Opacity 1→0 | General purpose (default) |
+| `slide` | From right | To left | Progression, new concepts |
+| `slide-up` | From bottom | To top | Results, conclusions |
+| `grow` | Scale from center | Scale to center | Focal elements, data structures |
+| `typewriter` | Lines appear sequentially | Fade out | First code reveals |
+| `none` | Instant | Instant | Reference material |
+
+### Duration
+
+```
+0.15s    — 150ms (micro-interactions)
+0.3s     — 300ms (default)
+0.5s     — 500ms (deliberate)
+1s       — 1000ms (slow reveal)
+1.5s     — 1500ms (typewriter, moderate)
+2s       — 2000ms (typewriter, slow)
+```
+
+### Easing
+
+| Easing | Description | Use When |
+|--------|-------------|----------|
+| `ease-out` | Fast start, gentle stop | Elements entering (default) |
+| `ease-in-out` | Gentle start and stop | Elements moving on screen |
+| `spring` | Physics-based with overshoot | Playful, snappy, data structures |
+| `linear` | Constant speed | Typewriter, mechanical processes |
+| `reveal` | Smooth cinematic reveal | First reveals, dramatic moments |
+| `emphasis` | Punchy overshoot | Drawing attention, key concepts |
+| `handoff` | Calm handoff between scenes | Scene transitions, topic changes |
+
+## Visualization Block Types
+
+### Code Blocks
+
+Syntax-highlighted source code with line-level animation and focus.
+
+````markdown
+```code:hash-fn lang=ts
+function hash(key: string): number {
+  let h = 0
+  for (const ch of key) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0  // ! Bitwise clamp to 32-bit int
+  }
+  return h
+}
+---
+signature: 1
+init: 2
+loop: 3-5
+return-val: 7
+```
+````
+
+**Parameters:**
+- `lang=<language>`: Syntax highlighting (typescript, javascript, python, rust, go, java, c, cpp, sql, bash, html, css, json, yaml, text)
+
+**Inline annotations:** `// ! annotation text` on a code line. Stripped from display, rendered as floating callout.
+
+**Region targets:** Line numbers, ranges, or combinations:
+
+```yaml
+single-line: 5
+range: 3-8
+multiple: 1, 4-6, 9
+```
+
+### Data Blocks
+
+Data structure visualizations. Supports 40+ types.
+
+**Array:**
+```markdown
+\`\`\`data:names type=array
+["Alice", "Bob", "Dana", "Eve"]
+^check=0
+---
+first: 0
+found: 2
+\`\`\`
+```
+
+**Linked List:**
+```markdown
+\`\`\`data:chain type=linked-list
+(head Alice) -> (n2 Bob) -> null
+---
+first: head
+second: n2
+\`\`\`
+```
+
+**Binary Tree:**
+```markdown
+\`\`\`data:bst type=tree variant=bst
+[10, 5, 15, 3, 7, null, 20]
+---
+root: 0
+left-subtree: 1, 3, 4
+\`\`\`
+```
+
+**Graph:**
+```markdown
+\`\`\`data:network type=graph layout=force
+A -> B, C: 5
+B -- D
+C -> D: 3
+---
+entry: A
+exits: C, D
+\`\`\`
+```
+
+**Hash Map:**
+```markdown
+\`\`\`data:phonebook type=hash-map
+0: (alice 555-1234) -> (bob 555-5678)
+1:
+2: (charlie 555-9012)
+\`\`\`
+```
+
+### Diagram Blocks
+
+Architecture-style node-and-edge diagrams with AWS icons.
+
+````markdown
+```diagram:system
+client [client]
+gw [api-gateway]
+api [service]
+db [database]
+cache [cache]
+client --> gw
+gw --> api
+api --> db
+api --reads--> cache
+{Backend: gw, api, db, cache}
+---
+storage: db
+fast-path: cache
+```
+````
+
+**Node types:** `[service]`, `[database]`, `[client]`, `[user]`, `[cache]`, `[queue]`, `[load-balancer]`, `[api-gateway]`
+
+**Edges:** `-->` (directed), `--label-->` (labeled)
+
+**Groups:** `{Group Name: node1, node2}` (visual cluster)
+
+### Preview Blocks
+
+HTML or React rendered in an isolated iframe.
+
+**Raw HTML:**
+````markdown
+```preview:button
+<style>
+  .btn { padding: 12px 24px; background: #3b82f6; color: white; }
+</style>
+<button class="btn">Click me</button>
+```
+````
+
+**React (compiled via SWC):**
+````markdown
+```preview:counter template=react
+function Counter() {
+  const [count, setCount] = React.useState(0);
+  return <button onClick={() => setCount(c => c + 1)}>Count: {count}</button>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Counter />);
+```
+````
+
+<Tip>
+Use `@container` queries for responsive previews, not `@media`. The iframe width varies with split layout.
+</Tip>
+
+### Math Blocks
+
+LaTeX expressions via KaTeX.
+
+````markdown
+```math:quadratic
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+
+y = mx + b
+```
+````
+
+### Chart Blocks
+
+Data visualizations with labeled axes.
+
+````markdown
+```chart:quarterly type=bar
+Q1: 100
+Q2: 150
+Q3: 120
+Q4: 200
+---
+growth: Q2, Q3
+```
+````
+
+**Types:** `bar` (default), `line`, `scatter`, `area`
+
+## Regions
+
+Named sub-elements within a block. Defined in a footer section below a `---` separator.
+
+```markdown
+content here
+---
+region-name: target-spec
+another-region: target-spec
+```
+
+### Target Format by Block Type
+
+| Block Type | Target Format | Examples |
+|------------|---------------|----------|
+| Code | Line numbers, ranges | `2`, `3-5`, `1, 4-6, 9` |
+| Data | Node/element IDs | `head`, `n1, n2` |
+| Diagram | Node IDs | `api`, `db, cache` |
+| Math | Expression IDs | `expr-0`, `expr-1` |
+| Chart | X-axis labels | `Q1`, `Feb` |
+
+### Naming Conventions
+
+Use short, semantic names that describe what the region represents.
+
+**Good:** `signature`, `loop-body`, `hash-step`, `collision-slot`
+
+**Bad:** `line-2`, `top-part`, `the-important-bit`
+
+## Narration Craft
+
+### The Voice
+
+You are narrating a film, not writing a textbook. The voice is an expert explaining something to a curious colleague over coffee.
+
+**Good:**
+> You have a list of a million names and you need to find one. Starting at the front and checking each entry could take a million steps. Hash maps do it in one.
+
+**Bad:**
+> Hash maps are a fundamental data structure that provide O(1) average-case lookup time using a hash function to compute array indices.
+
+### Sentence Rhythm
+
+Short declarative sentences form the backbone. Vary length to create rhythm:
+
+```
+Punch.                          (3-5 words)
+Explain the thing.              (8-15 words)
+Punch again.                    (3-5 words)
+Now a longer sentence.          (15-25 words)
+```
+
+**Real example:**
+> The greedy approach fails. Picking the nearest neighbor doesn't guarantee the shortest path. We need something smarter.
+
+Three sentences: short (4), medium (9), short (4).
+
+### Questions Create Anticipation
+
+```markdown
+{{focus: multiplier}} Why 31? Because it's an odd prime. Multiplying by an even number loses information. An odd prime distributes hash values more uniformly.
+```
+
+The question creates a gap. The listener's brain leans in. The answer satisfies.
+
+### Word Choice for TTS
+
+| Written | TTS Says | Write Instead |
+|---------|----------|---------------|
+| `O(n)` | "oh en" | "O of n" or "linear time" |
+| `2^6` | "two caret six" | "two to the sixth power" |
+| `&&` | "ampersand ampersand" | "and" |
+| `===` | "equals equals equals" | "strict equality" |
+
+### Introduce Terms Before Naming Them
+
+Plain English first, then the technical term.
+
+**Good:**
+> Two keys land in the same slot. This is called a **collision**.
+
+**Bad:**
+> A collision occurs when two keys hash to the same index.
+
+## The Mirror Principle
+
+**The single most important rule in Handhold authoring.**
+
+What is spoken must be what is shown. At all times. The screen is a mirror of the narration.
+
+### Never Talk About Something Invisible
+
+If a block isn't on screen, you can't talk about it.
+
+**Bad:**
+```markdown
+This function uses a priority queue internally.
+{{show: priority-queue}}
+Here it is.
+```
+
+**Good:**
+```markdown
+{{show: priority-queue slide 0.3s}} This function uses a priority queue. {{focus: enqueue}} Items go in sorted by distance.
+```
+
+The block appears as the sentence starts.
+
+### Never Show Something Without Explaining It
+
+**Bad:**
+```markdown
+{{show: hash-fn}} {{show: buckets}} Now let's think about what happens with more keys.
+```
+
+**Good:**
+```markdown
+{{show: hash-fn}} Here's our hash function. {{focus: signature}} It takes a string and returns a number.
+```
+
+## Trigger Placement
+
+Triggers fire at their word position in the narration. Placement determines synchronization.
+
+### Place Triggers at the Exact Word
+
+`{{focus: X}}` goes immediately before the words that describe X:
+
+```markdown
+{{focus: init}} We create a variable to build up the result.
+```
+
+Focus fires → "We create a variable" is spoken → the listener sees the init region highlighted while hearing about creating a variable.
+
+### Multiple Triggers on One Position
+
+This is normal and expected:
+
+```markdown
+{{focus: sig}} {{zoom: 1.2x}} {{annotate: sig "The signature"}} This function takes a string and returns an integer.
+```
+
+Three things happen at once: focus shifts, zoom activates, annotation appears.
+
+### Common Trigger Patterns
+
+<Accordion title="Introduce a new block">
+```markdown
+{{show: hash-fn typewriter 2s linear}} Here's our hash function.
+```
+</Accordion>
+
+<Accordion title="Walk through regions">
+```markdown
+{{focus: signature}} It takes a string and returns a number.
+
+{{focus: loop}} The loop processes one character at a time.
+
+{{focus: return-val}} The function returns the accumulated hash.
+```
+</Accordion>
+
+<Accordion title="Emphasize with zoom + annotate">
+```markdown
+{{focus: pick}} Now the key step. {{zoom: 1.2x}} Pick the unvisited node with the smallest known distance. {{annotate: pick "Greedy choice"}}
+```
+</Accordion>
+
+<Accordion title="Compare with split">
+```markdown
+{{split}} {{show: bad-code slide 0.3s}} {{show: good-code slide 0.5s spring}} Two approaches. Same result.
+```
+</Accordion>
+
+<Accordion title="Reset before moving on">
+```markdown
+{{zoom: 1x}} {{focus: none}} The whole picture. That's the hash function.
+
+{{clear: slide}}
+
+{{show: next-concept}} Now let's see how we use it.
+```
+</Accordion>
+
+<CardGroup cols={2}>
+  <Card title="Course Architecture" icon="sitemap" href="/authoring/course-architecture">
+    Design arcs, steps, and blocks
+  </Card>
+  
+  <Card title="Creating Labs" icon="flask" href="/authoring/creating-labs">
+    Build hands-on coding exercises
+  </Card>
+</CardGroup>

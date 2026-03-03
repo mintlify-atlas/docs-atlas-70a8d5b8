@@ -1,0 +1,562 @@
+---
+title: Frontend Architecture
+description: Deep dive into the React frontend, parser, and visualization systems
+---
+
+The Handhold frontend is a React 19 application built with TypeScript, Vite, and Zustand. It handles markdown parsing, presentation orchestration, and interactive visualizations.
+
+## Technology Stack
+
+- **React 19**: UI framework with concurrent rendering and automatic batching
+- **TypeScript 5.7**: Type-safe development with strict mode
+- **Vite 6**: Fast build tool and dev server with HMR
+- **Zustand**: Lightweight state management (presentation store, lab store)
+- **TanStack Query**: Server state caching for TTS audio and course data
+- **Motion**: Animation library for scene transitions and effects
+- **Shiki**: Syntax highlighting engine
+- **Monaco Editor**: VS Code editor for labs
+- **Tailwind CSS 4**: Utility-first styling
+- **Unified/Remark**: Markdown AST parsing
+
+## Directory Structure
+
+```
+src/
+├── types/              # TypeScript type definitions (IR, lesson, lab)
+├── parser/             # Markdown → IR transformation
+├── presentation/       # Playback orchestration and scene control
+├── code/               # Code visualization primitive
+├── data/               # Data structure visualization primitive
+├── diagram/            # Diagram visualization primitive
+├── preview/            # HTML/React preview primitive
+├── chart/              # Chart visualization
+├── math/               # Math rendering (KaTeX)
+├── tts/                # TTS integration (frontend side)
+├── lab/                # Interactive lab environment
+├── browser/            # Course browser UI
+├── editor/             # Monaco editor integration
+├── components/         # Reusable UI components (shadcn)
+├── hooks/              # Shared React hooks
+├── lib/                # Utility functions
+└── App.tsx             # Root component and routing
+```
+
+## Parser
+
+**Location**: `src/parser/`
+
+The parser transforms markdown source into a typed intermediate representation (IR) that the presentation engine consumes.
+
+### Parsing Pipeline
+
+<Steps>
+  <Step title="Markdown → AST">
+    Uses Unified/Remark to parse markdown into an abstract syntax tree (MDAST).
+
+    ```typescript
+    const tree = unified()
+      .use(remarkParse)
+      .use(remarkFrontmatter, ['yaml'])
+      .parse(markdown);
+    ```
+  </Step>
+
+  <Step title="Extract frontmatter">
+    Parses YAML frontmatter to extract the lesson title.
+
+    ```yaml
+    ---
+    title: How Hash Maps Work
+    ---
+    ```
+  </Step>
+
+  <Step title="Segment into steps">
+    Splits the lesson at H1 headings (`#`). Each step is a top-level section.
+
+    ```markdown
+    # Introduction
+    ...
+    # The algorithm
+    ...
+    ```
+  </Step>
+
+  <Step title="Parse blocks">
+    Within each step, separates narration (paragraphs) from visualization blocks (code fences).
+
+    Visualization blocks are parsed based on their language tag:
+    - `code` → Code visualization
+    - `data` → Data structure
+    - `diagram` → Graph diagram
+    - `chart` → Chart/graph
+    - `math` → LaTeX math
+    - `preview` → HTML/React preview
+  </Step>
+
+  <Step title="Extract triggers">
+    Parses inline triggers from narration text using `{{...}}` syntax.
+
+    ```markdown
+    {{show: hash-fn}} Every hash map starts with a function.
+    ```
+
+    Triggers are extracted and stored with their word positions for timing.
+  </Step>
+
+  <Step title="Build scene sequence">
+    Computes the sequence of scene states by replaying triggers in order.
+
+    Each scene represents a snapshot of what's visible on stage at a given moment.
+  </Step>
+</Steps>
+
+### Key Parser Files
+
+#### `parse-lesson.ts`
+
+Main orchestrator. Entry point is `parseLesson(markdown: string): ParsedLesson`.
+
+Returns a `ParsedLesson` with:
+- `title: string`
+- `steps: LessonStep[]`
+- `diagnostics: LessonDiagnostic[]`
+
+#### `parse-data.ts`
+
+Parses data structure visualizations. Supports:
+
+- **Arrays**: `[1, 2, 3]`
+- **Linked lists**: `1 -> 2 -> 3`
+- **Trees**: Nested JSON-like syntax
+- **Graphs**: Node and edge definitions
+- **Sequential animations**: `seq { ... }` DSL for multi-step transitions
+
+Example:
+
+````markdown
+```data name=array-example
+[10, 20, 30, 40]
+```
+````
+
+#### `parse-diagram.ts`
+
+Parses node-edge diagrams using a simple DSL:
+
+```
+Client -> Server
+Server -> Database
+```
+
+Nodes are auto-detected; edges are directional.
+
+#### `parse-seq.ts`
+
+Parses the sequential animation DSL used in data blocks:
+
+```
+seq {
+  [1, 2, 3]
+  insert(0, 5) -> [5, 1, 2, 3]
+  remove(2) -> [5, 1, 3]
+}
+```
+
+Each line becomes a scene frame.
+
+#### `build-scenes.ts`
+
+Replays triggers to compute scene states. Output is a timeline of `SceneState` objects.
+
+## Presentation Engine
+
+**Location**: `src/presentation/`
+
+The presentation engine orchestrates lesson playback: audio synthesis, trigger execution, animation scheduling, and scene state management.
+
+### Presentation Store
+
+**File**: `src/presentation/store.ts`
+
+A Zustand store holds all presentation state:
+
+```typescript
+type PresentationState = {
+  lesson: ParsedLesson | null;
+  steps: readonly LessonStep[];
+  currentStepIndex: number;
+  status: 'idle' | 'playing' | 'paused';
+  playbackRate: number;
+  currentWordIndex: number;
+  sceneIndex: number;
+  completedStepIds: ReadonlySet<string>;
+};
+```
+
+Actions:
+- `loadLesson(opts)` - Load a lesson
+- `play()` / `pause()` - Control playback
+- `nextStep()` / `prevStep()` - Navigate steps
+- `setWordIndex(index)` - Sync to audio position
+- `advanceScene()` - Transition to next scene
+
+### Playback Orchestration
+
+**File**: `src/presentation/use-playback.ts`
+
+Manages audio playback and trigger execution:
+
+1. Fetch TTS audio for current narration block (cached via React Query)
+2. Play audio via Howler.js
+3. Listen for word boundary events
+4. Fire triggers when word index reaches trigger position
+5. Update scene state
+6. Schedule animations
+
+**Event Scheduler**: `src/presentation/event-scheduler.ts`
+
+Maps triggers to word positions and schedules execution.
+
+### Stage Rendering
+
+**File**: `src/presentation/Stage.tsx`
+
+The stage is the main rendering surface. It:
+
+- Reads current scene state from the store
+- Renders active visualization blocks
+- Applies enter/exit animations via Motion
+- Handles split-screen mode (multiple blocks side-by-side)
+
+```tsx
+<Stage>
+  {sceneState.visible.map(blockName => (
+    <VisualizationBlock key={blockName} name={blockName} />
+  ))}
+</Stage>
+```
+
+### Animation System
+
+**File**: `src/presentation/animation-variants.ts`
+
+Defines Motion variants for enter/exit effects:
+
+- `fade`: Opacity transition
+- `slide`: Horizontal slide
+- `slide-up`: Vertical slide
+- `grow`: Scale from 0
+- `typewriter`: Character-by-character reveal
+
+Each trigger can override default animation:
+
+```markdown
+{{show: code-block slide 0.5s ease-out}}
+```
+
+## Visualization Primitives
+
+### Code Visualization
+
+**Location**: `src/code/`
+
+Renders syntax-highlighted code with animations:
+
+- **Syntax highlighting**: Shiki tokenizer with customizable themes
+- **Line diffing**: Compares two code states and highlights changes
+- **Animated transitions**: Lines slide in/out, fade, or morph
+- **Focus regions**: Highlight specific lines
+- **Annotations**: Inline labels for explanations
+
+**Key components**:
+- `Code.tsx` - Main component
+- `CodeLine.tsx` - Individual line renderer
+- `code-diff.ts` - Diffing algorithm
+- `use-shiki.ts` - Shiki highlighter hook
+
+**Example**:
+
+````markdown
+```code name=example lang=javascript focus=2-3
+function greet(name) {
+  console.log(`Hello, ${name}`);
+}
+```
+````
+
+### Data Structure Visualization
+
+**Location**: `src/data/`
+
+Renders data structures with automatic layout:
+
+- **Arrays**: Horizontal cells with indices
+- **Linked lists**: Nodes with arrows
+- **Trees**: Hierarchical layout
+- **Graphs**: Force-directed or hierarchical layout
+- **Pointers**: Animated arrows between nodes
+- **State transitions**: Sequential frames with animations
+
+**Key components**:
+- `Data.tsx` - Main component
+- `layouts/` - Layout algorithms (array, list, tree, graph)
+- `DataNode.tsx` - Individual node renderer
+- `DataPointer.tsx` - Pointer arrow component
+
+**Example**:
+
+````markdown
+```data name=array
+seq {
+  [1, 2, 3]
+  insert(0, 5) -> [5, 1, 2, 3]
+}
+```
+````
+
+### Diagram Visualization
+
+**Location**: `src/diagram/`
+
+Renders node-edge diagrams using ELK.js for auto-layout:
+
+- **Auto-layout**: Hierarchical, force-directed, or custom algorithms
+- **Animated edges**: Edge paths draw progressively
+- **Labels**: Node and edge labels
+- **Styling**: Color, shape, size customization
+
+**Key components**:
+- `Diagram.tsx` - Main component
+- `use-elk-layout.ts` - ELK.js integration
+
+**Example**:
+
+````markdown
+```diagram name=arch layout=hierarchical
+Client -> Server
+Server -> Database
+Server -> Cache
+```
+````
+
+### Preview Visualization
+
+**Location**: `src/preview/`
+
+Renders live HTML or React components in an isolated iframe:
+
+- **HTML rendering**: Direct HTML injection
+- **React rendering**: Compiles JSX on-the-fly (via backend Babel transform)
+- **Isolated execution**: Runs in sandboxed iframe
+- **Hot reload**: Updates on content change
+
+**Key components**:
+- `Preview.tsx` - Main component
+- `PreviewFrame.tsx` - Iframe wrapper
+
+**Example**:
+
+````markdown
+```preview name=button
+<button>Click me</button>
+```
+````
+
+## Interactive Labs
+
+**Location**: `src/lab/`
+
+Labs provide a full IDE environment for hands-on exercises.
+
+### Lab Store
+
+**File**: `src/lab/store.ts`
+
+Manages lab state:
+
+- File tree
+- Open files
+- Active file
+- Editor content
+- Terminal sessions
+- Test results
+- Service containers
+
+### Monaco Editor Integration
+
+**File**: `src/lab/Editor.tsx`
+
+Integrates Monaco Editor with:
+
+- Language server protocol (LSP) for TypeScript, JavaScript
+- Diagnostics (errors, warnings)
+- Autocomplete
+- Go-to-definition
+- Vim mode (optional)
+
+**LSP Bridge**: `src/lab/lsp/` - Frontend side of LSP communication
+
+### Terminal Emulation
+
+**File**: `src/lab/TerminalPanel.tsx`
+
+Uses xterm.js for terminal rendering. Backend handles PTY process.
+
+### Container Orchestration
+
+**File**: `src/lab/use-containers.ts`
+
+Manages Docker Compose services:
+
+- Start/stop containers
+- View logs
+- Check container status
+
+### Test Runner
+
+**File**: `src/lab/TestRunnerPanel.tsx`
+
+Runs tests and parses TAP output:
+
+- Executes test command
+- Parses TAP (Test Anything Protocol) results
+- Displays pass/fail status
+- Shows test output
+
+## TTS Integration
+
+**Location**: `src/tts/`
+
+### Synthesis
+
+**File**: `src/tts/synthesize.ts`
+
+Invokes backend TTS command and returns audio + timing:
+
+```typescript
+const { audioBase64, wordTimings } = await synthesize(text);
+```
+
+WordTimings is an array of `{ word, startMs, endMs, wordIndex }`.
+
+### Audio Playback
+
+**File**: `src/tts/audio-player.ts`
+
+Wraps Howler.js for audio playback with callbacks:
+
+```typescript
+const player = createAudioPlayer(audioBase64, {
+  onPlay: () => {},
+  onPause: () => {},
+  onEnd: () => {},
+  onSeek: (position) => {},
+});
+```
+
+### Prefetching
+
+**File**: `src/tts/use-prefetch-tts.ts`
+
+Prefetches TTS audio for all narration blocks in a lesson using React Query:
+
+```typescript
+usePrefetchAllAudio(lesson);
+```
+
+This ensures smooth playback without waiting for synthesis.
+
+## State Management
+
+### Zustand Stores
+
+1. **Presentation Store** (`src/presentation/store.ts`)
+   - Lesson playback state
+   - Current step, word index, scene index
+   - Playback controls
+
+2. **Lab Store** (`src/lab/store.ts`)
+   - File tree, open files, active file
+   - Editor state
+   - Terminal sessions
+   - Test results
+
+3. **Diagnostics Store** (`src/lab/diagnostics-store.ts`)
+   - LSP diagnostics (errors, warnings)
+
+4. **Settings Store** (`src/lab/settings-store.ts`)
+   - Editor settings (theme, font size, Vim mode)
+
+### React Query
+
+Used for server state caching:
+
+- TTS audio (keyed by narration text)
+- Course list
+- Course metadata
+- Lesson content
+- Lab files
+
+## Styling
+
+**Framework**: Tailwind CSS 4
+
+**Theme**: `src/app/theme.ts` - Color palette and design tokens
+
+**Components**: Shadcn UI components in `src/components/ui/`
+
+## Routing
+
+**File**: `src/App.tsx`
+
+No external router. Simple state-based routing:
+
+- Course browser → `<Browser />`
+- Lesson viewer → `<Presentation />`
+- Lab environment → `<Lab />`
+
+Navigation managed via `use-route.ts` hook.
+
+## Build Configuration
+
+**File**: `vite.config.ts`
+
+Vite config with:
+
+- React plugin for JSX
+- Tailwind plugin
+- Path aliases (`@/` → `src/`)
+- Dependency pre-bundling for large libraries (Monaco, Shiki)
+
+## Development Workflow
+
+1. Edit files in `src/`
+2. Vite HMR updates browser instantly
+3. TypeScript errors show in terminal and editor
+4. Test changes in dev app (`bun tauri dev`)
+
+## Testing
+
+Currently no automated tests. Manual testing:
+
+1. Create test lessons in `data/lessons/`
+2. Open in dev app
+3. Verify parsing, playback, animations
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Parser" icon="code" href="/development/parser">
+    Deep dive into the markdown parser
+  </Card>
+  <Card title="Presentation Engine" icon="play" href="/development/presentation-engine">
+    Learn how playback works
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Explore the Rust backend
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    High-level system overview
+  </Card>
+</CardGroup>

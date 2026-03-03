@@ -1,0 +1,246 @@
+---
+title: Visualization
+description: TypeScript types for code, data structures, diagrams, and charts
+---
+
+The `VisualizationState` type is a discriminated union of all supported visualization kinds.
+
+## VisualizationState
+
+Union type:
+```typescript
+type VisualizationState =
+  | CodeState
+  | DataState
+  | DiagramState
+  | MathState
+  | ChartState
+  | PreviewState;
+```
+
+## CodeState
+
+Source code with syntax highlighting, focus ranges, and annotations.
+
+<ParamField path="kind" type="'code'" required />
+<ParamField path="name" type="string" required>
+  Unique identifier for this code block
+</ParamField>
+<ParamField path="lang" type="string" required>
+  Language identifier (e.g., `'typescript'`, `'python'`)
+</ParamField>
+<ParamField path="fileName" type="string" required>
+  Displayed filename
+</ParamField>
+<ParamField path="content" type="string" required>
+  Source code
+</ParamField>
+<ParamField path="focus" type="readonly FocusRange[]" required>
+  Line ranges to highlight
+</ParamField>
+<ParamField path="annotations" type="readonly CodeAnnotation[]" required>
+  Line annotations
+</ParamField>
+<ParamField path="regions" type="readonly RegionDef[]" required>
+  Named sub-regions for triggers
+</ParamField>
+
+### FocusRange
+
+<ParamField path="start" type="number" required>
+  Starting line number (1-based)
+</ParamField>
+<ParamField path="end" type="number" required>
+  Ending line number (inclusive)
+</ParamField>
+
+### CodeAnnotation
+
+<ParamField path="line" type="number" required>
+  Line number to annotate
+</ParamField>
+<ParamField path="text" type="string" required>
+  Annotation text
+</ParamField>
+
+## DataState
+
+Data structure visualizations (arrays, trees, graphs, etc.).
+
+<ParamField path="kind" type="'data'" required />
+<ParamField path="name" type="string" required />
+<ParamField path="data" type="ArrayData | LinkedListData | TreeData | ..." required>
+  Data structure definition. See below for supported types.
+</ParamField>
+<ParamField path="regions" type="readonly RegionDef[]" required />
+
+### Supported Data Structures
+
+- **ArrayData**: Linear array with pointers
+- **LinkedListData**: Singly linked list with nodes and edges
+- **DoublyLinkedListData**: Doubly linked list
+- **TreeData**: N-ary tree (supports BST, AVL, red-black, heap, etc.)
+- **BTreeData**: B-tree variants (B-tree, B+ tree, 2-3 tree, 2-3-4 tree)
+- **TrieData**: Trie variants (trie, radix tree, suffix tree)
+- **SkipListData**: Skip list with levels
+- **StackData**: Stack with top pointer
+- **QueueData**: Queue with front/rear pointers
+- **DequeData**: Double-ended queue
+- **RingBufferData**: Circular buffer
+- **HashMapData**: Hash table with chaining
+- **GraphData**: Directed or undirected graph
+- **MatrixData**: 2D matrix with labels
+- **UnionFindData**: Disjoint set (union-find)
+- **LsmTreeData**: Log-structured merge tree
+- **FibonacciHeapData**: Fibonacci heap
+- **BitArrayData**: Bit arrays (Bloom filter, cuckoo filter, count-min sketch, HyperLogLog)
+
+### ArrayData Example
+
+<ParamField path="type" type="'array'" required />
+<ParamField path="values" type="readonly string[]" required>
+  Array elements
+</ParamField>
+<ParamField path="pointers" type="readonly DataPointerDef[]" required>
+  Named pointers to array indices
+</ParamField>
+
+### TreeData Example
+
+<ParamField path="type" type="'tree'" required />
+<ParamField path="variant" type="TreeVariant" required>
+  One of: `'generic'` | `'bst'` | `'avl'` | `'red-black'` | `'heap-min'` | `'heap-max'` | `'splay'` | `'treap'` | `'aa'` | `'segment'` | `'interval'` | `'fenwick'` | `'merkle'` | `'kd'` | `'rope'`
+</ParamField>
+<ParamField path="nodes" type="readonly TreeNodeDef[]" required />
+<ParamField path="rootId" type="string" required />
+<ParamField path="pointers" type="readonly DataPointerDef[]" required />
+
+### TreeNodeDef
+
+<ParamField path="id" type="string" required>
+  Unique node identifier
+</ParamField>
+<ParamField path="value" type="string" required>
+  Node value
+</ParamField>
+<ParamField path="children" type="readonly string[]" required>
+  Child node IDs
+</ParamField>
+<ParamField path="annotation" type="string" required>
+  Node annotation (e.g., balance factor, color)
+</ParamField>
+
+### GraphData Example
+
+<ParamField path="type" type="'graph'" required />
+<ParamField path="nodes" type="readonly DataNodeDef[]" required />
+<ParamField path="edges" type="readonly GraphEdgeDef[]" required />
+<ParamField path="pointers" type="readonly DataPointerDef[]" required />
+<ParamField path="directed" type="boolean" required />
+<ParamField path="layout" type="GraphLayoutKind" required>
+  One of: `'ring'` | `'force'` | `'tree'` | `'grid'` | `'bipartite'`
+</ParamField>
+
+### DataPointerDef
+
+<ParamField path="name" type="string" required>
+  Pointer label
+</ParamField>
+<ParamField path="targetId" type="string" required>
+  Target node/element ID
+</ParamField>
+
+## DiagramState
+
+System architecture diagrams.
+
+<ParamField path="kind" type="'diagram'" required />
+<ParamField path="name" type="string" required />
+<ParamField path="nodes" type="readonly DiagramNodeDef[]" required />
+<ParamField path="edges" type="readonly DiagramEdgeDef[]" required />
+<ParamField path="groups" type="readonly DiagramGroupDef[]" required />
+<ParamField path="regions" type="readonly RegionDef[]" required />
+
+### DiagramNodeDef
+
+<ParamField path="id" type="string" required />
+<ParamField path="label" type="string" required />
+<ParamField path="nodeType" type="DiagramNodeType" required>
+  One of: `'client'` | `'service'` | `'database'` | `'cache'` | `'queue'` | `'load-balancer'` | `'api-gateway'` | `'message-queue'` | `'user'` | `'server'`
+</ParamField>
+<ParamField path="icon" type="string | undefined" optional>
+  Optional icon identifier
+</ParamField>
+
+### DiagramEdgeDef
+
+<ParamField path="fromId" type="string" required />
+<ParamField path="toId" type="string" required />
+<ParamField path="label" type="string" required />
+
+## MathState
+
+Mathematical expressions rendered via LaTeX.
+
+<ParamField path="kind" type="'math'" required />
+<ParamField path="name" type="string" required />
+<ParamField path="expressions" type="readonly MathExpression[]" required />
+<ParamField path="regions" type="readonly RegionDef[]" required />
+
+### MathExpression
+
+<ParamField path="id" type="string" required />
+<ParamField path="latex" type="string" required>
+  LaTeX markup
+</ParamField>
+
+## ChartState
+
+Data visualizations (bar, line, scatter, etc.).
+
+<ParamField path="kind" type="'chart'" required />
+<ParamField path="name" type="string" required />
+<ParamField path="chartKind" type="ChartKind" required>
+  One of: `'bar'` | `'line'` | `'scatter'` | `'area'` | `'pie'` | `'radar'` | `'radial'`
+</ParamField>
+<ParamField path="series" type="readonly ChartSeries[]" required />
+<ParamField path="annotations" type="readonly ChartAnnotation[]" required />
+<ParamField path="shadedRegions" type="readonly ShadedRegion[]" required />
+<ParamField path="regions" type="readonly RegionDef[]" required />
+
+### ChartSeries
+
+<ParamField path="name" type="string" required>
+  Series label
+</ParamField>
+<ParamField path="data" type="readonly ChartDataPoint[]" required />
+
+### ChartDataPoint
+
+<ParamField path="label" type="string" required />
+<ParamField path="value" type="number" required />
+
+## PreviewState
+
+Live HTML/React preview.
+
+<ParamField path="kind" type="'preview'" required />
+<ParamField path="name" type="string" required />
+<ParamField path="source" type="string" required>
+  HTML or JSX source code
+</ParamField>
+<ParamField path="template" type="PreviewTemplate" required>
+  One of: `'html'` | `'react'`
+</ParamField>
+<ParamField path="regions" type="readonly RegionDef[]" required />
+
+## RegionDef
+
+Named sub-element for trigger targeting.
+
+<ParamField path="name" type="string" required>
+  Region identifier
+</ParamField>
+<ParamField path="target" type="string" required>
+  CSS selector or element identifier
+</ParamField>

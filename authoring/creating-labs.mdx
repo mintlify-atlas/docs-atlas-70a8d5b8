@@ -1,0 +1,482 @@
+---
+title: Creating Labs
+description: Design hands-on coding exercises with tests, services, and real editors
+---
+
+Labs are hands-on coding exercises where learners write code in a real editor, run real tests, and interact with real services.
+
+## Lab Anatomy
+
+A lab lives in a directory under the course's `labs/` folder:
+
+```
+labs/01-setup/
+├── lab.yaml          # Configuration: services, tests, setup, open files
+├── INSTRUCTIONS.md   # What the learner sees: tasks, hints, context
+└── scaffold/         # Starting code: the files the learner will work in
+    ├── package.json
+    ├── src/
+    │   └── index.js
+    ├── seed.js
+    └── test.js
+```
+
+### lab.yaml
+
+The lab manifest. Every field maps to a behavior in the lab runtime.
+
+```yaml
+workspace: fresh          # "fresh" = clean start, "continue" = keep previous lab's files
+test: node test.js        # Command to run when learner clicks "Run Tests"
+services:                 # Docker containers to spin up
+  - postgres              # Preset name (see service presets below)
+setup:                    # Commands run after scaffold is copied
+  - npm install
+  - node seed.js
+open:                     # Files to open in the editor on load
+  - src/index.js
+```
+
+### INSTRUCTIONS.md
+
+What the learner sees in the instructions panel. Markdown format.
+
+```markdown
+# Lab Title
+
+One sentence describing the goal.
+
+## Tasks
+
+- Task 1 (the first thing to implement)
+- Task 2 (builds on task 1)
+- Task 3 (final piece)
+
+## Hints
+
+Context the learner might need. Connection strings, API references, file locations.
+
+Use `Run Tests` in the testing panel to check your progress.
+```
+
+### scaffold/
+
+The starting code. Everything inside this directory is copied to the learner's workspace when the lab starts. This is what they'll edit.
+
+## Designing Labs
+
+### What to Give vs. What to Leave Blank
+
+The scaffold should be a **working skeleton** with holes. The learner fills the holes.
+
+<Accordion title="Scaffold Guidelines">
+  <AccordionItem title="Give them">
+    - Project structure (package.json, directory layout)
+    - Boilerplate they shouldn't waste time on (imports, config, server setup)
+    - Utility functions not related to the teaching point
+    - Database schemas or seed scripts
+    - Test files (they don't write tests — they pass them)
+    - Comments or TODO markers where they need to write code
+  </AccordionItem>
+  
+  <AccordionItem title="Leave blank">
+    - The core implementation (the thing the lesson just taught)
+    - Logic that requires understanding the concept
+    - Integration between components (if composition is the lesson)
+  </AccordionItem>
+</Accordion>
+
+### The 80/20 Scaffold Rule
+
+The scaffold should be 80% complete. The learner writes the 20% that matters — the part that demonstrates understanding.
+
+- If the scaffold is 50% complete, the learner is fighting boilerplate
+- If it's 95% complete, the lab is too easy and they learn nothing
+
+### Progressive Labs
+
+When labs build on each other, use `workspace: continue`:
+
+```yaml
+# Lab 1: Create the API
+workspace: fresh
+# ...
+
+# Lab 2: Add authentication
+workspace: continue
+# ...
+```
+
+<Tip>
+`continue` carries the learner's workspace from the previous lab. Their code persists. Lab 2 adds new tests that require new code, but the old code (and old tests) should still pass.
+</Tip>
+
+For standalone labs, use `workspace: fresh`. The scaffold is a clean start.
+
+### Scaffolding Patterns
+
+<Accordion title="Scaffolding Strategies">
+  <AccordionItem title="The TODO pattern">
+    ```javascript
+    function createUser(name, email) {
+      // TODO: Insert into the users table and return the created row
+      // Hint: Use pool.query with parameterized values ($1, $2)
+    }
+    ```
+    Best for beginners.
+  </AccordionItem>
+  
+  <AccordionItem title="The stub pattern">
+    ```javascript
+    function createUser(name, email) {
+      throw new Error("Not implemented");
+    }
+    ```
+    Best for intermediate learners.
+  </AccordionItem>
+  
+  <AccordionItem title="The partial pattern">
+    ```javascript
+    app.get("/users", async (req, res) => {
+      // This endpoint is complete — use it as a reference
+      const { rows } = await pool.query("SELECT * FROM users");
+      res.json(rows);
+    });
+    
+    app.post("/users", async (req, res) => {
+      // TODO: Implement this endpoint
+      res.status(501).json({ error: "Not implemented" });
+    });
+    ```
+    Best when you want them to mirror existing code.
+  </AccordionItem>
+</Accordion>
+
+## Service Configuration
+
+### Presets
+
+The lab system has built-in presets for common services. Just use the name:
+
+```yaml
+services:
+  - postgres
+```
+
+This spins up `postgres:16-alpine` on port 5432 with default credentials.
+
+**Available presets:**
+
+| Preset | Image | Port | Default Credentials |
+|--------|-------|------|--------------------|
+| `postgres` | postgres:16-alpine | 5432 | user: postgres, pass: postgres |
+| `redis` | redis:7-alpine | 6379 | (none) |
+| `mysql` | mysql:8-oracle | 3306 | root: root, db: lab |
+| `mongo` | mongo:7 | 27017 | (none) |
+| `rabbitmq` | rabbitmq:3-management-alpine | 5672 | guest / guest |
+| `kafka` | confluentinc/cp-kafka:7.6.0 | 9092 | (requires zookeeper) |
+| `zookeeper` | confluentinc/cp-zookeeper:7.6.0 | 2181 | (none) |
+| `localstack` | localstack/localstack:latest | 4566 | s3, sqs, sns, dynamodb, lambda |
+| `minio` | minio/minio:latest | 9000 | minioadmin / minioadmin |
+
+### Custom Services
+
+Override preset defaults or define entirely custom services:
+
+```yaml
+services:
+  - name: postgres
+    hostPort: 5433        # Override the host port
+    env:
+      POSTGRES_DB: myapp  # Additional environment variable
+
+  - name: custom-api
+    image: myorg/api:v2
+    port: 8080
+    healthcheck: "curl -f http://localhost:8080/health"
+    env:
+      API_KEY: "test-key"
+```
+
+### When to Use Services
+
+<CardGroup cols={2}>
+  <Card title="Database labs" icon="database">
+    postgres, mysql, mongo
+  </Card>
+  
+  <Card title="Caching labs" icon="bolt">
+    redis
+  </Card>
+  
+  <Card title="Message queue labs" icon="message">
+    rabbitmq, kafka + zookeeper
+  </Card>
+  
+  <Card title="AWS-like labs" icon="cloud">
+    localstack (S3, SQS, DynamoDB, etc.)
+  </Card>
+  
+  <Card title="File storage labs" icon="folder">
+    minio
+  </Card>
+</CardGroup>
+
+<Note>
+If the lab doesn't need external services (pure frontend, algorithm exercises), omit the `services` field entirely. No containers, faster startup.
+</Note>
+
+## Setup Commands
+
+Setup commands run sequentially after the scaffold is copied and services are healthy:
+
+```yaml
+setup:
+  - npm install
+  - node seed.js
+  - npx prisma migrate deploy
+```
+
+### Order Matters
+
+Commands run in order. Later commands can depend on earlier ones:
+
+<Steps>
+  <Step title="Install Dependencies">
+    npm install, yarn install, pip install
+  </Step>
+  
+  <Step title="Run Migrations">
+    Database schema setup
+  </Step>
+  
+  <Step title="Seed Data">
+    Populate tables with test data
+  </Step>
+  
+  <Step title="Other Initialization">
+    Compile assets, generate types, etc.
+  </Step>
+</Steps>
+
+### Idempotency
+
+Setup commands should be idempotent — running them twice shouldn't break things. This matters for `workspace: continue` labs where setup runs again but the database might already have data.
+
+**Good: CREATE TABLE IF NOT EXISTS**
+
+```javascript
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL
+  )
+`);
+```
+
+**Bad: CREATE TABLE (fails if already exists)**
+
+```javascript
+await pool.query(`CREATE TABLE users (...)`);
+```
+
+## Open Files
+
+```yaml
+open:
+  - src/index.js
+  - src/db.js
+```
+
+Files listed here open in the editor when the lab starts. Open the files the learner needs to edit first, then reference files they might want to read.
+
+### Opening Strategy
+
+<Steps>
+  <Step title="First file">
+    The main file they'll edit
+  </Step>
+  
+  <Step title="Second file">
+    A reference or helper they might need
+  </Step>
+  
+  <Step title="Don't open">
+    Test files (they can find them, but editing tests isn't the point)
+  </Step>
+  
+  <Step title="Don't open">
+    Config files (boring, not the teaching point)
+  </Step>
+</Steps>
+
+## Instructions Design
+
+### Structure
+
+```markdown
+# Short, active title
+
+One sentence: what you're building.
+
+## Tasks
+
+- [ ] Concrete task 1 (verb first: "Create...", "Implement...", "Connect...")
+- [ ] Concrete task 2
+- [ ] Concrete task 3
+
+## Hints
+
+Helpful context. Not the answer.
+```
+
+### Task Writing
+
+Tasks should be:
+
+- **Concrete**: "Implement the POST /users endpoint" not "Add user creation"
+- **Ordered**: Task 2 builds on Task 1
+- **Testable**: Each task maps to one or more test assertions
+- **Verb-first**: "Create," "Implement," "Connect," "Add," "Fix"
+
+### Hint Writing
+
+Hints help without solving. They point to files, mention useful APIs, or clarify requirements:
+
+```markdown
+## Hints
+
+The database connection pool is exported from `src/db.js`. Use `pool.query()` with
+parameterized queries: `$1`, `$2`, etc.
+
+The seed script in `seed.js` expects the `users` table to exist before running.
+
+Run `Run Tests` in the testing panel to check your progress.
+```
+
+<Warning>
+Never put the full solution in hints. The learner should still have to think.
+</Warning>
+
+### Difficulty Calibration
+
+A lab should take **5-15 minutes**.
+
+- More than 15 minutes means too many tasks or tasks that are too complex
+- Less than 5 minutes means the lab is trivial
+
+**Target:** The learner struggles briefly, figures it out, and feels the satisfaction of passing tests. Not frustrated, not bored.
+
+## Lab Lifecycle
+
+Understanding the lifecycle helps you design labs that work reliably.
+
+<Steps>
+  <Step title="uninitialized">
+    Lab selected, nothing started
+  </Step>
+  
+  <Step title="provisioning">
+    Scaffold copied, services starting, setup running
+  </Step>
+  
+  <Step title="ready">
+    Everything healthy, editor open, learner works
+  </Step>
+  
+  <Step title="(learner runs tests)">
+    Test command executes, TAP output parsed
+  </Step>
+  
+  <Step title="tearing-down">
+    Services stopping, cleanup
+  </Step>
+</Steps>
+
+**Key implications:**
+
+- Services must be healthy BEFORE setup runs (setup may need the database)
+- Setup commands run AFTER scaffold is copied (npm install needs package.json)
+- Test command runs in the workspace directory (paths are relative to scaffold root)
+- Workspace persists between test runs (the learner's edits are preserved)
+
+## Example Lab: Database CRUD
+
+<Accordion title="Complete Lab Example">
+  <AccordionItem title="lab.yaml">
+    ```yaml
+    workspace: fresh
+    test: node test.js
+    services:
+      - postgres
+    setup:
+      - npm install
+      - node seed.js
+    open:
+      - src/index.js
+      - src/db.js
+    ```
+  </AccordionItem>
+  
+  <AccordionItem title="INSTRUCTIONS.md">
+    ```markdown
+    # Database CRUD Operations
+    
+    Implement basic Create, Read, Update, Delete operations for a users table.
+    
+    ## Tasks
+    
+    - [ ] Implement `createUser(name, email)` to insert a new user
+    - [ ] Implement `getUserById(id)` to fetch a user by ID
+    - [ ] Implement `updateUser(id, name, email)` to update a user
+    - [ ] Implement `deleteUser(id)` to delete a user
+    
+    ## Hints
+    
+    The database connection pool is exported from `src/db.js`.
+    
+    Use parameterized queries to prevent SQL injection: `pool.query('SELECT * FROM users WHERE id = $1', [id])`
+    
+    The `seed.js` script has already created the `users` table and inserted test data.
+    ```
+  </AccordionItem>
+  
+  <AccordionItem title="scaffold/src/index.js">
+    ```javascript
+    const pool = require('./db');
+    
+    async function createUser(name, email) {
+      // TODO: Insert into the users table and return the created row
+      // Hint: Use pool.query with parameterized values ($1, $2)
+    }
+    
+    async function getUserById(id) {
+      // TODO: Fetch a user by ID
+      // Hint: Use pool.query with a WHERE clause
+    }
+    
+    async function updateUser(id, name, email) {
+      // TODO: Update a user's name and email
+      // Hint: Use an UPDATE statement with parameterized values
+    }
+    
+    async function deleteUser(id) {
+      // TODO: Delete a user by ID
+      // Hint: Use a DELETE statement
+    }
+    
+    module.exports = { createUser, getUserById, updateUser, deleteUser };
+    ```
+  </AccordionItem>
+</Accordion>
+
+<CardGroup cols={2}>
+  <Card title="Course Architecture" icon="sitemap" href="/authoring/course-architecture">
+    Design lesson-lab rhythm and arcs
+  </Card>
+  
+  <Card title="Writing Lessons" icon="pen" href="/authoring/writing-lessons">
+    Master triggers and narration
+  </Card>
+</CardGroup>

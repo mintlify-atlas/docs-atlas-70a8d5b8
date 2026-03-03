@@ -1,0 +1,171 @@
+---
+title: Installation
+description: Install Handhold on macOS, Linux, or Windows with a single command. Includes optional setup for container runtimes.
+---
+
+One command detects your OS, checks dependencies, downloads the latest release, and installs it.
+
+## macOS / Linux
+
+Run this in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dutch-casa/handhold/main/scripts/install-handhold.sh | bash
+```
+
+<Info>
+  The installer handles macOS Gatekeeper for unsigned apps and prompts to set up optional dependencies like Docker or Podman for labs.
+</Info>
+
+### What the installer does
+
+<Steps>
+  <Step title="Detects your platform and architecture">
+    Supports macOS (Apple Silicon and Intel) and Linux (x86_64 and ARM64).
+  </Step>
+  
+  <Step title="Checks dependencies">
+    Verifies Git is installed. Offers to install a container runtime (Podman or Docker) for labs that need services like Postgres or Redis.
+  </Step>
+  
+  <Step title="Downloads the latest release">
+    Fetches the appropriate installer from GitHub releases: `.dmg` for macOS, `.deb` or `.AppImage` for Linux.
+  </Step>
+  
+  <Step title="Installs the app">
+    On macOS: mounts the DMG and copies Handhold.app to `/Applications/`, then clears the quarantine flag so it opens without warnings.
+    
+    On Linux: installs via `.deb` package if using apt/dpkg, otherwise installs the AppImage to `~/.local/bin/`.
+  </Step>
+</Steps>
+
+### macOS notes
+
+Handhold is not notarized by Apple. The installer automatically runs `xattr -cr /Applications/Handhold.app` to clear the quarantine flag. If this fails, you'll see a warning with manual instructions:
+
+```bash
+sudo xattr -cr /Applications/Handhold.app
+```
+
+Or right-click Handhold.app → Open → click "Open" in the dialog.
+
+### Linux notes
+
+The `.deb` package is preferred on Debian/Ubuntu systems. If no `.deb` is available for your architecture, the installer uses the AppImage and places it in `~/.local/bin/handhold`.
+
+If `~/.local/bin` is not on your PATH, add this to your shell profile:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## Windows
+
+Run this in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/dutch-casa/handhold/main/scripts/install-handhold.ps1 | iex
+```
+
+### What the installer does
+
+<Steps>
+  <Step title="Detects architecture">
+    Supports x64 and ARM64.
+  </Step>
+  
+  <Step title="Checks dependencies">
+    Verifies Git is installed. Offers to install a container runtime (Podman or Docker) via winget.
+  </Step>
+  
+  <Step title="Downloads the latest release">
+    Fetches the MSI installer from GitHub releases.
+  </Step>
+  
+  <Step title="Installs the app">
+    Runs the MSI installer silently. May prompt for administrator privileges.
+  </Step>
+</Steps>
+
+### Windows notes
+
+WebView2 is required and ships with Windows 11. On Windows 10, the installer includes an offline WebView2 installer.
+
+The installer uses winget to install optional dependencies like Git and container runtimes. If winget is not available, you'll need to install these manually.
+
+## Optional dependencies
+
+Lessons never require containers — only labs that spin up services like Postgres or Redis.
+
+<Tip>
+  The installer asks if you want to install Docker or Podman. **Podman is recommended** because it's lighter and doesn't require a background daemon on macOS/Windows.
+</Tip>
+
+### Installing Podman manually
+
+<CodeGroup>
+
+```bash macOS
+brew install podman
+```
+
+```bash Linux (Debian/Ubuntu)
+sudo apt-get update
+sudo apt-get install -y podman
+```
+
+```bash Linux (Fedora)
+sudo dnf install -y podman
+```
+
+```powershell Windows
+winget install RedHat.Podman
+```
+
+</CodeGroup>
+
+### Installing Docker manually
+
+<CodeGroup>
+
+```bash macOS
+brew install --cask docker
+```
+
+```bash Linux
+curl -fsSL https://get.docker.com | sh
+```
+
+```powershell Windows
+winget install Docker.DockerDesktop
+```
+
+</CodeGroup>
+
+## Verify installation
+
+After installation completes, launch Handhold:
+
+<CodeGroup>
+
+```bash macOS
+open /Applications/Handhold.app
+```
+
+```bash Linux
+handhold
+```
+
+```powershell Windows
+# Use Start Menu or desktop shortcut
+```
+
+</CodeGroup>
+
+You should see the Handhold window with the course library.
+
+## Next steps
+
+<Card title="Quick start" icon="rocket" href="/quickstart">
+  Watch your first lesson and complete a lab
+</Card>

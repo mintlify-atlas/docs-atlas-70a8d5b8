@@ -1,0 +1,227 @@
+---
+title: Container Commands
+description: Tauri commands for Docker/Podman container orchestration
+---
+
+Commands for managing containerized lab services.
+
+## detect_container_runtime
+
+Detects installed container runtime (Docker or Podman).
+
+<ResponseField name="runtime" type="RuntimeInfo" required />
+
+### RuntimeInfo
+
+<ResponseField name="binary" type="'docker' | 'podman'" required>
+  Detected runtime
+</ResponseField>
+
+<ResponseField name="version" type="string" required>
+  Version string from `--version`
+</ResponseField>
+
+```typescript
+const runtime = await invoke<RuntimeInfo>('detect_container_runtime');
+console.log(`Using ${runtime.binary} ${runtime.version}`);
+```
+
+## check_container_runtime
+
+Pre-flight check for container runtime availability. Always performs a fresh probe.
+
+<ResponseField name="result" type="RuntimeCheck" required>
+  Discriminated union:
+  - `{ kind: 'ready', binary: string, version: string }`
+  - `{ kind: 'missing' }`
+</ResponseField>
+
+```typescript
+const check = await invoke<RuntimeCheck>('check_container_runtime');
+if (check.kind === 'missing') {
+  // Show installation instructions
+}
+```
+
+## compose_up
+
+Starts services defined in a Docker Compose file, streaming health status.
+
+<ParamField path="compose_path" type="string" required>
+  Absolute path to `docker-compose.yaml`
+</ParamField>
+
+<ParamField path="on_event" type="Channel<ServiceEvent>" required>
+  Event channel for service status updates
+</ParamField>
+
+<ResponseField name="result" type="void" required>
+  Emits events via channel until all services are healthy or timeout occurs
+</ResponseField>
+
+### ServiceEvent
+
+Discriminated union:
+
+<Expandable title="ServiceStarting">
+  <ResponseField name="event" type="'serviceStarting'" required />
+  <ResponseField name="name" type="string" required>
+    Service name
+  </ResponseField>
+</Expandable>
+
+<Expandable title="ServiceHealthy">
+  <ResponseField name="event" type="'serviceHealthy'" required />
+  <ResponseField name="name" type="string" required />
+</Expandable>
+
+<Expandable title="ServiceFailed">
+  <ResponseField name="event" type="'serviceFailed'" required />
+  <ResponseField name="name" type="string" required />
+  <ResponseField name="error" type="string" required />
+</Expandable>
+
+<Expandable title="AllHealthy">
+  <ResponseField name="event" type="'allHealthy'" required />
+  Fired when all services report healthy status.
+</Expandable>
+
+<Expandable title="Error">
+  <ResponseField name="event" type="'error'" required />
+  <ResponseField name="message" type="string" required />
+</Expandable>
+
+```typescript
+import { Channel } from '@tauri-apps/api/core';
+
+const channel = new Channel<ServiceEvent>();
+channel.onmessage = (event) => {
+  if (event.event === 'serviceHealthy') {
+    console.log(`${event.name} is ready`);
+  } else if (event.event === 'allHealthy') {
+    console.log('All services ready');
+  }
+};
+
+await invoke('compose_up', {
+  composePath: '/path/to/docker-compose.yaml',
+  onEvent: channel
+});
+```
+
+## compose_down
+
+Stops and removes services from a Compose file.
+
+<ParamField path="compose_path" type="string" required>
+  Absolute path to `docker-compose.yaml`
+</ParamField>
+
+<ParamField path="remove_volumes" type="boolean" required>
+  If true, removes named volumes (equivalent to `docker compose down -v`)
+</ParamField>
+
+```typescript
+await invoke('compose_down', {
+  composePath: '/path/to/docker-compose.yaml',
+  removeVolumes: true
+});
+```
+
+## container_list
+
+Lists containers for a Compose project.
+
+<ParamField path="compose_path" type="string" required />
+
+<ResponseField name="containers" type="ContainerInfo[]" required />
+
+### ContainerInfo
+
+<ResponseField name="id" type="string" required>
+  Container ID
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Container name
+</ResponseField>
+
+<ResponseField name="image" type="string" required>
+  Image name
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Status string (e.g., `'Up 5 minutes'`)
+</ResponseField>
+
+<ResponseField name="health" type="string" required>
+  Health status: `'healthy'` | `'unhealthy'` | `'starting'` | `''`
+</ResponseField>
+
+<ResponseField name="ports" type="string" required>
+  Port mappings (e.g., `'0.0.0.0:5432->5432/tcp'`)
+</ResponseField>
+
+## container_logs
+
+Streams logs from a container.
+
+<ParamField path="container_name" type="string" required>
+  Container name (not ID)
+</ParamField>
+
+<ParamField path="on_log" type="Channel<LogEvent>" required>
+  Event channel for log lines
+</ParamField>
+
+### LogEvent
+
+Discriminated union:
+
+<Expandable title="Line">
+  <ResponseField name="event" type="'line'" required />
+  <ResponseField name="data" type="string" required>
+    Log line
+  </ResponseField>
+</Expandable>
+
+<Expandable title="End">
+  <ResponseField name="event" type="'end'" required />
+  Fired when log stream ends.
+</Expandable>
+
+<Expandable title="Error">
+  <ResponseField name="event" type="'error'" required />
+  <ResponseField name="message" type="string" required />
+</Expandable>
+
+```typescript
+const channel = new Channel<LogEvent>();
+channel.onmessage = (event) => {
+  if (event.event === 'line') {
+    console.log(event.data);
+  }
+};
+
+await invoke('container_logs', {
+  containerName: 'postgres-1',
+  onLog: channel
+});
+```
+
+## container_action
+
+Performs an action on a container.
+
+<ParamField path="container_name" type="string" required />
+
+<ParamField path="action" type="ContainerAction" required>
+  One of: `'start'` | `'stop'` | `'restart'`
+</ParamField>
+
+```typescript
+await invoke('container_action', {
+  containerName: 'postgres-1',
+  action: 'restart'
+});
+```

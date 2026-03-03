@@ -1,0 +1,363 @@
+---
+title: Course Commands
+description: Tauri commands for course import, browsing, and progress tracking
+---
+
+Tauri commands for managing courses, steps, and navigation state.
+
+## course_import
+
+Imports a course from a URL (GitHub or HTTP).
+
+<ParamField path="source_url" type="string" required>
+  Course URL. Supports:
+  - `https://github.com/owner/repo`
+  - `https://github.com/owner/repo/tree/branch/path`
+  - `https://example.com/path/handhold.yaml`
+</ParamField>
+
+<ResponseField name="result" type="ImportResult" required>
+  Discriminated union with variants:
+  - `{ kind: 'ok', course: CourseRecord }`
+  - `{ kind: 'invalidUrl' }`
+  - `{ kind: 'notFound' }`
+  - `{ kind: 'noManifest' }`
+  - `{ kind: 'badManifest', reason: string }`
+  - `{ kind: 'alreadyExists' }`
+  - `{ kind: 'downloadFailed', reason: string }`
+</ResponseField>
+
+```typescript
+const result = await invoke<ImportResult>('course_import', {
+  sourceUrl: 'https://github.com/user/my-course'
+});
+
+if (result.kind === 'ok') {
+  console.log('Imported:', result.course.title);
+}
+```
+
+## course_list
+
+Returns all imported courses.
+
+<ResponseField name="courses" type="CourseRecord[]" required>
+  Array of course metadata records
+</ResponseField>
+
+```typescript
+const courses = await invoke<CourseRecord[]>('course_list');
+```
+
+### CourseRecord
+
+<ResponseField name="id" type="string" required>
+  Unique course identifier (hash of source URL)
+</ResponseField>
+
+<ResponseField name="sourceUrl" type="string" required>
+  Original import URL
+</ResponseField>
+
+<ResponseField name="localPath" type="string" required>
+  Absolute path to course directory
+</ResponseField>
+
+<ResponseField name="title" type="string" required>
+  Course title from manifest
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  Course description
+</ResponseField>
+
+<ResponseField name="stepCount" type="number" required>
+  Total number of steps
+</ResponseField>
+
+<ResponseField name="addedAt" type="number" required>
+  Unix timestamp (milliseconds) when course was imported
+</ResponseField>
+
+<ResponseField name="completedSteps" type="number" required>
+  Number of completed steps
+</ResponseField>
+
+<ResponseField name="tags" type="string[]" required>
+  Course tags
+</ResponseField>
+
+## course_search
+
+Full-text search across course titles and descriptions.
+
+<ParamField path="query" type="string" required>
+  Search query (FTS5 syntax)
+</ParamField>
+
+<ResponseField name="results" type="CourseRecord[]" required>
+  Matching courses
+</ResponseField>
+
+```typescript
+const results = await invoke<CourseRecord[]>('course_search', {
+  query: 'algorithms'
+});
+```
+
+## course_tags
+
+Returns all unique tags across imported courses.
+
+<ResponseField name="tags" type="string[]" required>
+  Sorted array of tag names
+</ResponseField>
+
+## course_by_tag
+
+Returns courses with a specific tag.
+
+<ParamField path="tag" type="string" required>
+  Tag name
+</ParamField>
+
+<ResponseField name="courses" type="CourseRecord[]" required />
+
+## course_delete
+
+Deletes a course from the database and optionally removes workspace files.
+
+<ParamField path="id" type="string" required>
+  Course ID
+</ParamField>
+
+<ParamField path="delete_workspaces" type="boolean" required>
+  If true, deletes lab workspaces for this course
+</ParamField>
+
+```typescript
+await invoke('course_delete', {
+  id: courseId,
+  deleteWorkspaces: true
+});
+```
+
+## course_get
+
+Returns a single course by ID.
+
+<ParamField path="id" type="string" required />
+
+<ResponseField name="course" type="CourseRecord" required />
+
+## course_manifest
+
+Returns the parsed `handhold.yaml` manifest for a course.
+
+<ParamField path="id" type="string" required />
+
+<ResponseField name="manifest" type="CourseManifest" required>
+  Manifest with resolved dependencies for current platform
+</ResponseField>
+
+### CourseManifest
+
+<ResponseField name="title" type="string" required />
+<ResponseField name="description" type="string" required />
+<ResponseField name="tags" type="string[]" required />
+<ResponseField name="steps" type="ManifestStep[]" required />
+<ResponseField name="dependencies" type="CourseDependency[]" required />
+
+### ManifestStep
+
+<ResponseField name="kind" type="'lesson' | 'lab'" required />
+<ResponseField name="title" type="string" required />
+<ResponseField name="path" type="string" required>
+  Relative path to lesson markdown or lab directory
+</ResponseField>
+
+### CourseDependency
+
+<ResponseField name="name" type="string" required>
+  Dependency name (e.g., `'Node.js'`)
+</ResponseField>
+
+<ResponseField name="check" type="string" required>
+  Shell command to verify installation (e.g., `'node --version'`)
+</ResponseField>
+
+<ResponseField name="install" type="string | null" required>
+  Install command for current platform, or null if unavailable
+</ResponseField>
+
+## course_read_step
+
+Reads lesson markdown content.
+
+<ParamField path="id" type="string" required>
+  Course ID
+</ParamField>
+
+<ParamField path="step_path" type="string" required>
+  Path from manifest step (e.g., `'01-intro/lesson.md'`)
+</ParamField>
+
+<ResponseField name="content" type="string" required>
+  Raw markdown content. If step_path is a directory, concatenates all `.md` files.
+</ResponseField>
+
+## course_read_lab
+
+Reads lab configuration and paths.
+
+<ParamField path="id" type="string" required>
+  Course ID
+</ParamField>
+
+<ParamField path="step_path" type="string" required>
+  Path to lab directory
+</ParamField>
+
+<ResponseField name="labData" type="LabData" required />
+
+### LabData
+
+<ResponseField name="instructions" type="string" required>
+  Content of `INSTRUCTIONS.md`
+</ResponseField>
+
+<ResponseField name="hasScaffold" type="boolean" required>
+  True if `scaffold/` directory exists
+</ResponseField>
+
+<ResponseField name="scaffoldPath" type="string" required>
+  Absolute path to scaffold directory
+</ResponseField>
+
+<ResponseField name="hasSolution" type="boolean" required>
+  True if `solution/` directory exists
+</ResponseField>
+
+<ResponseField name="solutionPath" type="string" required>
+  Absolute path to solution directory
+</ResponseField>
+
+<ResponseField name="labDirPath" type="string" required>
+  Absolute path to lab directory
+</ResponseField>
+
+<ResponseField name="workspacePath" type="string" required>
+  Absolute path to workspace (provisioning target)
+</ResponseField>
+
+<ResponseField name="config" type="RawLabConfig" required>
+  Parsed `lab.yaml` configuration
+</ResponseField>
+
+## step_complete
+
+Marks a step as completed.
+
+<ParamField path="course_id" type="string" required />
+<ParamField path="step_index" type="number" required>
+  Zero-based step index
+</ParamField>
+
+## step_progress
+
+Returns completed step indices for a course.
+
+<ParamField path="course_id" type="string" required />
+
+<ResponseField name="indices" type="number[]" required>
+  Array of completed step indices
+</ResponseField>
+
+## slide_position_save
+
+Persists current slide position for a lesson step.
+
+<ParamField path="course_id" type="string" required />
+<ParamField path="step_index" type="number" required />
+<ParamField path="slide_index" type="number" required />
+<ParamField path="slide_count" type="number | null" optional>
+  Total slide count (updated only if provided)
+</ParamField>
+
+## slide_position_load
+
+Loads saved slide position for a lesson step.
+
+<ParamField path="course_id" type="string" required />
+<ParamField path="step_index" type="number" required />
+
+<ResponseField name="position" type="SlidePosition | null" required />
+
+### SlidePosition
+
+<ResponseField name="slideIndex" type="number" required />
+<ResponseField name="slideCount" type="number | null" required />
+
+## slide_complete
+
+Marks a specific slide as completed (for progress tracking).
+
+<ParamField path="course_id" type="string" required />
+<ParamField path="step_index" type="number" required />
+<ParamField path="slide_id" type="string" required />
+
+## slide_completions
+
+Returns completed slide IDs for a step.
+
+<ParamField path="course_id" type="string" required />
+<ParamField path="step_index" type="number" required />
+
+<ResponseField name="slideIds" type="string[]" required />
+
+## route_save
+
+Persists current application route.
+
+<ParamField path="route" type="Route" required>
+  Discriminated union:
+  - `{ kind: 'browser' }`
+  - `{ kind: 'course', courseId: string, stepIndex: number }`
+  - `{ kind: 'editor', courseId: string }`
+</ParamField>
+
+## route_load
+
+Loads persisted application route.
+
+<ResponseField name="route" type="Route" required>
+  Last saved route, or `{ kind: 'browser' }` if none exists
+</ResponseField>
+
+## courses_dir_path
+
+Returns absolute path to courses directory.
+
+<ResponseField name="path" type="string" required />
+
+## home_dir_path
+
+Returns user home directory path.
+
+<ResponseField name="path" type="string" required />
+
+## course_sync
+
+Scans courses directory and registers any new courses found locally.
+
+<ResponseField name="result" type="SyncResult" required />
+
+### SyncResult
+
+<ResponseField name="added" type="number" required>
+  Number of courses added to database
+</ResponseField>
+
+<ResponseField name="removed" type="number" required>
+  Number of orphaned courses removed
+</ResponseField>

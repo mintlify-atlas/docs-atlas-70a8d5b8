@@ -1,0 +1,91 @@
+---
+title: Introduction
+description: Narrated, animated technical courses that run on your machine with real labs, real tests, and real services.
+---
+
+Handhold is a desktop app for interactive programming courses. Each lesson is a narrated walkthrough where code, diagrams, and data structures animate in sync with spoken audio. Labs give you a real editor, real tests, and real services to build against.
+
+## What makes Handhold different
+
+Most programming courses show you static code blocks and expect you to follow along. Handhold synchronizes narration with animated visualizations, so you see exactly what the instructor is explaining at the moment they explain it.
+
+<CardGroup cols={2}>
+  <Card title="Narrated lessons" icon="microphone">
+    Every lesson is spoken aloud with text-to-speech. Code, diagrams, and data structures animate in sync with the narration.
+  </Card>
+  
+  <Card title="Interactive labs" icon="code">
+    Write real code in a real editor. Run tests against real services like Postgres and Redis in containers.
+  </Card>
+  
+  <Card title="Visual primitives" icon="diagram-project">
+    Code blocks with syntax highlighting and line-level animation. Data structures (arrays, trees, graphs) with layout and focus. Architecture diagrams with AWS icons.
+  </Card>
+  
+  <Card title="Works offline" icon="bolt">
+    Everything runs locally. No network required after installation. TTS models, React runtime, and course content are bundled.
+  </Card>
+</CardGroup>
+
+## How it works
+
+Lessons are Markdown files with an embedded DSL for triggers and animations. Each lesson walks through a concept step by step:
+
+1. **Narration fires triggers** — The spoken text contains commands like `{{show: hash-fn}}` that control what appears on screen
+2. **Visualizations animate** — Code blocks highlight specific lines, data structures focus on nodes, diagrams trace paths
+3. **Labs reinforce concepts** — After each lesson, you write code to apply what you learned
+
+Courses alternate between bite-sized lessons (5-15 minutes) and focused labs (10-20 minutes). Each lab builds on previous ones when the content supports it.
+
+## Example lesson structure
+
+Here's how a lesson on hash maps might flow:
+
+<Steps>
+  <Step title="Show the problem">
+    Linear search through an array of names takes O(n) time. The narration asks: how can we do better?
+  </Step>
+  
+  <Step title="Introduce the hash function">
+    Code animates on screen showing a function that converts strings to integers. Focus highlights the signature, then the loop, then the return value.
+  </Step>
+  
+  <Step title="Map hash to array index">
+    Split screen shows the hash function on the left and a visual array on the right. The narration traces a key through the hash function to its bucket.
+  </Step>
+  
+  <Step title="Handle collisions">
+    Data structure visualization shows linked chains at each array slot. The narration walks through collision resolution.
+  </Step>
+</Steps>
+
+After the lesson, a lab asks you to implement hash map insertion with collision handling. Tests verify your code against edge cases.
+
+## What you can build with Handhold
+
+Handhold is built for technical courses that benefit from visualization:
+
+- **Algorithms and data structures** — Hash maps, trees, graph traversal, sorting
+- **Systems concepts** — How databases index data, how Redis handles persistence, how DNS resolution works
+- **Web development** — React component lifecycle, state management, CSS layout algorithms
+- **Language features** — JavaScript closures, Rust ownership, Python decorators
+
+Anything that involves code, data flow, or system architecture works well.
+
+## Built with open source
+
+Handhold is built with [Tauri 2](https://v2.tauri.app/) (Rust backend) and [React 19](https://react.dev/) (frontend). Text-to-speech uses [Kokoro](https://github.com/hexgrad/kokoro). Syntax highlighting uses [Shiki](https://shiki.style/). Container orchestration supports both Podman and Docker.
+
+The project is licensed under AGPL-3.0 and developed in the open on [GitHub](https://github.com/dutch-casa/handhold).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Install Handhold" icon="download" href="/installation">
+    One-command installer for macOS, Linux, and Windows
+  </Card>
+  
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Go from install to watching your first lesson in 5 minutes
+  </Card>
+</CardGroup>

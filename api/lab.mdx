@@ -1,0 +1,197 @@
+---
+title: Lab
+description: TypeScript types for interactive lab environments
+---
+
+The `ParsedLab` type represents a fully resolved lab configuration with services, workspace settings, and file scaffolding.
+
+## ParsedLab
+
+<ParamField path="title" type="string" required>
+  Lab title
+</ParamField>
+
+<ParamField path="instructions" type="string" required>
+  Markdown instructions rendered in the lab sidebar
+</ParamField>
+
+<ParamField path="filesPath" type="string" required>
+  Absolute path to scaffold files directory
+</ParamField>
+
+<ParamField path="solutionPath" type="string | undefined" required>
+  Absolute path to solution directory, or undefined if no solution exists
+</ParamField>
+
+<ParamField path="workspace" type="'fresh' | 'continue'" required>
+  Workspace lifecycle mode. `'fresh'` resets to scaffold on each provision. `'continue'` preserves previous state.
+</ParamField>
+
+<ParamField path="testCommand" type="string" required>
+  Shell command to run tests (e.g., `'npm test'`)
+</ParamField>
+
+<ParamField path="openFiles" type="readonly string[]" required>
+  List of file paths to open in editor on lab start
+</ParamField>
+
+<ParamField path="services" type="readonly ResolvedService[]" required>
+  Docker/Podman services to provision
+</ParamField>
+
+<ParamField path="setup" type="readonly string[]" required>
+  Shell commands to run after workspace provision
+</ParamField>
+
+## ResolvedService
+
+A fully resolved container service (preset or custom).
+
+<ParamField path="name" type="string" required>
+  Service name (used as container name)
+</ParamField>
+
+<ParamField path="image" type="string" required>
+  Docker image (e.g., `'postgres:17-alpine'`)
+</ParamField>
+
+<ParamField path="port" type="number" required>
+  Container internal port
+</ParamField>
+
+<ParamField path="hostPort" type="number" required>
+  Host port to expose
+</ParamField>
+
+<ParamField path="env" type="Readonly<Record<string, string>>" required>
+  Environment variables for the container
+</ParamField>
+
+<ParamField path="healthcheck" type="string" required>
+  Healthcheck command (e.g., `'pg_isready -U postgres'`)
+</ParamField>
+
+## LabLifecycle
+
+Discriminated union representing lab runtime state.
+
+<Expandable title="uninitialized">
+  <ParamField path="kind" type="'uninitialized'" required />
+  <ParamField path="lab" type="ParsedLab" required>
+    Lab configuration
+  </ParamField>
+</Expandable>
+
+<Expandable title="provisioning">
+  <ParamField path="kind" type="'provisioning'" required />
+  <ParamField path="lab" type="ParsedLab" required />
+  <ParamField path="workspacePath" type="string" required>
+    Absolute path to workspace directory
+  </ParamField>
+  <ParamField path="log" type="readonly string[]" required>
+    Provisioning log lines
+  </ParamField>
+</Expandable>
+
+<Expandable title="ready">
+  <ParamField path="kind" type="'ready'" required />
+  <ParamField path="lab" type="ParsedLab" required />
+  <ParamField path="workspacePath" type="string" required />
+</Expandable>
+
+<Expandable title="failed">
+  <ParamField path="kind" type="'failed'" required />
+  <ParamField path="lab" type="ParsedLab" required />
+  <ParamField path="error" type="string" required>
+    Error message
+  </ParamField>
+</Expandable>
+
+<Expandable title="missing_runtime">
+  <ParamField path="kind" type="'missing_runtime'" required />
+  <ParamField path="lab" type="ParsedLab" required>
+    Container runtime not detected
+  </ParamField>
+</Expandable>
+
+<Expandable title="tearing-down">
+  <ParamField path="kind" type="'tearing-down'" required />
+  <ParamField path="lab" type="ParsedLab" required />
+  <ParamField path="workspacePath" type="string" required />
+</Expandable>
+
+## TestRunState
+
+Discriminated union representing test execution state.
+
+<Expandable title="idle">
+  <ParamField path="kind" type="'idle'" required />
+</Expandable>
+
+<Expandable title="running">
+  <ParamField path="kind" type="'running'" required />
+  <ParamField path="output" type="string" required>
+    Test output stream
+  </ParamField>
+</Expandable>
+
+<Expandable title="passed">
+  <ParamField path="kind" type="'passed'" required />
+  <ParamField path="assertions" type="readonly TestAssertion[]" required />
+  <ParamField path="output" type="string" required />
+  <ParamField path="durationMs" type="number" required />
+</Expandable>
+
+<Expandable title="failed">
+  <ParamField path="kind" type="'failed'" required />
+  <ParamField path="assertions" type="readonly TestAssertion[]" required />
+  <ParamField path="output" type="string" required />
+  <ParamField path="durationMs" type="number" required />
+</Expandable>
+
+<Expandable title="error">
+  <ParamField path="kind" type="'error'" required />
+  <ParamField path="message" type="string" required />
+</Expandable>
+
+## TestAssertion
+
+<ParamField path="index" type="number" required>
+  Assertion index in test suite
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Assertion description
+</ParamField>
+
+<ParamField path="passed" type="boolean" required>
+  Whether assertion passed
+</ParamField>
+
+## ContainerRuntime
+
+<ParamField path="binary" type="'podman' | 'docker'" required>
+  Detected container runtime
+</ParamField>
+
+<ParamField path="version" type="string" required>
+  Runtime version string
+</ParamField>
+
+## RuntimeState
+
+View-layer state for container runtime detection.
+
+<Expandable title="detecting">
+  <ParamField path="kind" type="'detecting'" required />
+</Expandable>
+
+<Expandable title="ready">
+  <ParamField path="kind" type="'ready'" required />
+  <ParamField path="binary" type="'podman' | 'docker'" required />
+  <ParamField path="version" type="string" required />
+</Expandable>
+
+<Expandable title="missing">
+  <ParamField path="kind" type="'missing'" required />
+</Expandable>

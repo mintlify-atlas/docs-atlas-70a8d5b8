@@ -1,0 +1,290 @@
+---
+title: Math Visualizations
+description: Rendered mathematical expressions using LaTeX and KaTeX
+---
+
+Math blocks render LaTeX expressions as beautifully formatted mathematical notation using KaTeX.
+
+## Basic Syntax
+
+Use a code fence with the `math` kind:
+
+````markdown
+```math:quadratic
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+````
+
+**Format**: `` ```math:name ``
+
+- `name`: Unique identifier for the block
+
+## Multiple Expressions
+
+Separate expressions with blank lines:
+
+````markdown
+```math:formulas
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+
+y = mx + b
+
+E = mc^2
+```
+````
+
+Each expression gets an auto-generated ID:
+- First expression: `expr-0`
+- Second expression: `expr-1`
+- Third expression: `expr-2`
+
+## LaTeX Syntax
+
+Handhold uses KaTeX for rendering, which supports most standard LaTeX math commands.
+
+### Common Operators
+
+```latex
+\frac{numerator}{denominator}    % Fraction
+\sqrt{x}                         % Square root
+\sqrt[n]{x}                      % Nth root
+x^{power}                        % Superscript
+x_{subscript}                    % Subscript
+```
+
+### Greek Letters
+
+```latex
+\alpha \beta \gamma \delta
+\epsilon \theta \lambda \mu
+\pi \sigma \phi \omega
+\Gamma \Delta \Theta \Lambda
+```
+
+### Symbols
+
+```latex
+\pm \mp \times \div
+\cdot \ast \star
+\leq \geq \neq \approx
+\in \subset \subseteq
+\cap \cup \emptyset
+\infty \partial \nabla
+\int \sum \prod \lim
+```
+
+### Delimiters
+
+```latex
+(x)              % Parentheses
+[x]              % Brackets
+\{x\}            % Braces (escaped)
+|x|              % Absolute value
+\langle x \rangle  % Angle brackets
+```
+
+### Matrices
+
+```latex
+\begin{matrix}
+  a & b \\
+  c & d
+\end{matrix}
+
+\begin{pmatrix}  % Parentheses
+  a & b \\
+  c & d
+\end{pmatrix}
+
+\begin{bmatrix}  % Brackets
+  a & b \\
+  c & d
+\end{bmatrix}
+```
+
+### Calculus
+
+```latex
+\int_{a}^{b} f(x) \, dx        % Integral
+\sum_{i=1}^{n} x_i             % Sum
+\prod_{i=1}^{n} x_i            % Product
+\lim_{x \to \infty} f(x)       % Limit
+\frac{dy}{dx}                  % Derivative
+\frac{\partial f}{\partial x}  % Partial derivative
+```
+
+### Text in Math
+
+```latex
+\text{some text}               % Regular text
+\textbf{bold text}             % Bold
+\textit{italic text}           % Italic
+```
+
+## Regions
+
+Target individual expressions using their auto-generated IDs:
+
+````markdown
+```math:equations
+F = ma
+
+E = mc^2
+
+v = v_0 + at
+---
+force: expr-0
+energy: expr-1
+velocity: expr-2
+```
+````
+
+Use with `{{focus: region}}` to highlight specific expressions (others dim).
+
+## Triggers
+
+Math blocks support:
+
+- `{{show: math-name}}` - Display the math block
+- `{{focus: region}}` - Highlight specific expressions
+- `{{pulse: region}}` - Briefly emphasize expressions
+
+## Real Examples
+
+### Quadratic Formula
+
+````markdown
+```math:quadratic
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+````
+
+Renders as:
+
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+
+### Distance Formula
+
+````markdown
+```math:distance
+d = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}
+```
+````
+
+Renders as:
+
+$$
+d = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}
+$$
+
+### Matrix Multiplication
+
+````markdown
+```math:matrix
+\begin{bmatrix}
+  a & b \\
+  c & d
+\end{bmatrix}
+\begin{bmatrix}
+  x \\
+  y
+\end{bmatrix}
+=
+\begin{bmatrix}
+  ax + by \\
+  cx + dy
+\end{bmatrix}
+```
+````
+
+### Calculus Example
+
+````markdown
+```math:calculus
+\int_{0}^{\infty} e^{-x^2} \, dx = \frac{\sqrt{\pi}}{2}
+
+\frac{d}{dx} \left( \int_{a}^{x} f(t) \, dt \right) = f(x)
+
+\lim_{n \to \infty} \left(1 + \frac{1}{n}\right)^n = e
+---
+gaussian: expr-0
+fundamental: expr-1
+e-definition: expr-2
+```
+````
+
+## Complete Lesson Example
+
+````markdown
+# The Quadratic Formula
+
+{{show: derivation}} The quadratic formula solves equations of the form ax² + bx + c = 0. {{focus: standard}} Starting with the standard form, {{focus: complete-square}} we complete the square, {{focus: isolate}} isolate x, {{focus: simplify}} and simplify to get the final formula.
+
+```math:derivation
+ax^2 + bx + c = 0
+
+x^2 + \frac{b}{a}x + \frac{c}{a} = 0
+
+x^2 + \frac{b}{a}x = -\frac{c}{a}
+
+\left(x + \frac{b}{2a}\right)^2 = \frac{b^2 - 4ac}{4a^2}
+
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+---
+standard: expr-0
+complete-square: expr-1, expr-2
+isolate: expr-3
+simplify: expr-4
+```
+````
+
+## Best Practices
+
+### Complexity
+
+- Keep expressions readable (not too dense)
+- Break complex derivations into multiple expressions
+- Use whitespace in LaTeX source for clarity
+
+### Naming
+
+**Do**: Use descriptive region names
+```
+---
+quadratic-formula: expr-0
+derivative-definition: expr-1
+```
+
+**Don't**: Use positional names
+```
+---
+first: expr-0
+second: expr-1
+```
+
+### LaTeX Tips
+
+- Use `\text{}` for words in equations
+- Use `\,` for spacing: `\int_{a}^{b} f(x) \, dx`
+- Use `\left` and `\right` for auto-sized delimiters: `\left( \frac{a}{b} \right)`
+- Escape braces: `\{` and `\}`
+
+### Expression Count
+
+- Limit to 5-8 expressions per block
+- Split long derivations across multiple steps
+- Use `{{focus: region}}` to reveal expressions sequentially
+
+## KaTeX Support
+
+Handhold uses KaTeX, which supports most LaTeX math features. For the complete reference, see:
+
+- [KaTeX Supported Functions](https://katex.org/docs/supported.html)
+- [KaTeX Support Table](https://katex.org/docs/support_table.html)
+
+Note: KaTeX does not support:
+- Advanced LaTeX packages (e.g., `tikz`)
+- Custom macros (use built-in commands only)
+- Text-mode commands outside `\text{}`

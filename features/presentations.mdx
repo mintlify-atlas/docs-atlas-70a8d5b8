@@ -1,0 +1,448 @@
+---
+title: 'Presentations'
+description: 'Animated presentation engine with timeline-driven scene transitions'
+icon: 'play'
+---
+
+The presentation system orchestrates narrated, animated lessons by synchronizing audio playback with visual scene transitions. It compiles lesson IR (Intermediate Representation) and TTS synthesis data into a playback timeline.
+
+## Architecture
+
+The presentation engine is a pure function pipeline:
+
+```
+Lesson Markdown
+    ↓ (parse-lesson.ts)
+Parsed Lesson (IR)
+    ↓ (build-scenes.ts)
+Scene Sequence
+    ↓ (synthesize.ts)
+TTS Word Timings
+    ↓ (build-timeline.ts)
+Playback Timeline
+    ↓ (event-scheduler.ts)
+Rendered Presentation
+```
+
+All state transitions are deterministic and replay-safe.
+
+## Scene System
+
+Scenes are immutable snapshots of presentation state. Each scene defines:
+
+<ResponseField name="slots" type="VisualizationState[]">
+  Array of visible visualization blocks (code, data, diagrams, etc.)
+</ResponseField>
+
+<ResponseField name="transition" type="'fade' | 'slide' | 'instant'">
+  Transition effect when entering this scene
+</ResponseField>
+
+<ResponseField name="enterEffects" type="SlotEnterEffect[]">
+  Per-slot animation effects (fade, slide, grow, typewriter)
+</ResponseField>
+
+<ResponseField name="exitEffects" type="SlotEnterEffect[]">
+  Per-slot animation effects for exiting slots
+</ResponseField>
+
+<ResponseField name="epoch" type="number">
+  Increments on `clear` verb to force full re-render
+</ResponseField>
+
+<ResponseField name="focus" type="string">
+  Region name to highlight (empty = none)
+</ResponseField>
+
+<ResponseField name="pulse" type="string">
+  Region name to pulse
+</ResponseField>
+
+<ResponseField name="trace" type="string">
+  Region name to trace (draw attention)
+</ResponseField>
+
+<ResponseField name="annotations" type="SceneAnnotation[]">
+  Callouts attached to regions
+</ResponseField>
+
+<ResponseField name="transformFrom" type="{ from: string; to: string }[]">
+  Pairs of blocks to morph (transform animation)
+</ResponseField>
+
+<ResponseField name="zoom" type="{ scale: number; target: string }">
+  Zoom level and target block
+</ResponseField>
+
+### Scene Builder (src/parser/build-scenes.ts)
+
+The scene builder is a **reducer** that processes trigger verbs sequentially:
+
+```typescript
+type SceneState = {
+  slots: VisualizationState[];
+  transition: TransitionKind;
+  enterEffects: SlotEnterEffect[];
+  // ... 10+ fields
+};
+
+function applyTrigger(
+  scene: SceneState,
+  trigger: Trigger
+): SceneState {
+  switch (trigger.action.verb) {
+    case "show":
+      return { ...scene, slots: [...scene.slots, block] };
+    case "hide":
+      return { ...scene, slots: scene.slots.filter(...) };
+    case "transform":
+      return { ...scene, transformFrom: [...scene.transformFrom, pair] };
+    // ... 15+ verbs
+  }
+}
+```
+
+Scene 0 is the initial empty state. Each trigger creates a new scene.
+
+## Playback Timeline
+
+The timeline (src/presentation/build-timeline.ts) maps trigger points to audio timestamps:
+
+```typescript
+type TimelineEvent =
+  | { timeMs: number; kind: "word"; wordIndex: number }
+  | { timeMs: number; kind: "scene"; sceneIndex: number };
+
+function buildTimeline(
+  synthesis: SynthesisResult,
+  step: LessonStep
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  // 1. Word events from TTS
+  for (const wt of synthesis.wordTimings) {
+    events.push({ timeMs: wt.startMs, kind: "word", wordIndex: wt.wordIndex });
+  }
+
+  // 2. Scene events from triggers
+  let sceneIdx = 1;
+  for (const trigger of allTriggers) {
+    const wordTiming = synthesis.wordTimings.find(
+      (wt) => wt.wordIndex >= trigger.wordIndex
+    );
+    events.push({ timeMs: wordTiming.startMs, kind: "scene", sceneIndex: sceneIdx });
+    sceneIdx++;
+  }
+
+  return events.sort((a, b) => a.timeMs - b.timeMs);
+}
+```
+
+**Result:** A sorted array of events that the scheduler consumes.
+
+## Event Scheduler (src/presentation/event-scheduler.ts)
+
+The scheduler drives playback using `requestAnimationFrame`:
+
+```typescript
+class EventScheduler {
+  private raf: number | null = null;
+  private startTime: number = 0;
+
+  start(timeline: TimelineEvent[], audio: HTMLAudioElement) {
+    this.startTime = performance.now();
+    audio.play();
+    this.tick(timeline, audio);
+  }
+
+  private tick(timeline: TimelineEvent[], audio: HTMLAudioElement) {
+    const elapsed = (performance.now() - this.startTime);
+    const currentTimeMs = elapsed + (audio.currentTime * 1000);
+
+    // Dispatch all events up to currentTimeMs
+    for (const event of timeline) {
+      if (event.timeMs <= currentTimeMs && !this.dispatched.has(event)) {
+        this.dispatch(event);
+        this.dispatched.add(event);
+      }
+    }
+
+    this.raf = requestAnimationFrame(() => this.tick(timeline, audio));
+  }
+}
+```
+
+**Dispatch actions:**
+- `word` events → update `currentWordIndex` (for narration highlighting)
+- `scene` events → update `sceneIndex` (triggers React re-render)
+
+## Presentation Store (src/presentation/store.ts)
+
+Zustand store that holds playback state:
+
+```typescript
+type PresentationState = {
+  lesson: ParsedLesson | null;
+  steps: LessonStep[];
+  currentStepIndex: number;
+  status: "idle" | "playing" | "paused";
+  playbackRate: number;
+  currentWordIndex: number;
+  sceneIndex: number;
+  completedStepIds: Set<string>;
+};
+```
+
+### Key Actions
+
+<CardGroup cols={2}>
+  <Card title="loadLesson" icon="file-import">
+    Initialize presentation with parsed lesson and callbacks
+  </Card>
+  <Card title="play / pause" icon="play">
+    Control audio playback
+  </Card>
+  <Card title="nextStep / prevStep" icon="arrows-left-right">
+    Navigate between lesson steps (H1 sections)
+  </Card>
+  <Card title="setWordIndex" icon="font">
+    Update highlighted word (called by scheduler)
+  </Card>
+  <Card title="advanceScene" icon="forward">
+    Manually skip to next scene
+  </Card>
+  <Card title="setPlaybackRate" icon="gauge">
+    Adjust speed (0.5x, 1x, 1.5x, 2x)
+  </Card>
+</CardGroup>
+
+## Animation System (src/presentation/animation-variants.ts)
+
+Slot animations are implemented as Framer Motion variants:
+
+```typescript
+type AnimationEffect = "fade" | "slide" | "slide-up" | "grow" | "typewriter";
+
+const variants: Record<AnimationEffect, MotionVariant> = {
+  fade: {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 }
+  },
+  slide: {
+    initial: { x: -50, opacity: 0 },
+    animate: { x: 0, opacity: 1 },
+    exit: { x: 50, opacity: 0 }
+  },
+  grow: {
+    initial: { scale: 0.8, opacity: 0 },
+    animate: { scale: 1, opacity: 1 },
+    exit: { scale: 0.8, opacity: 0 }
+  },
+  typewriter: {
+    // Custom implementation with character-by-character reveal
+  }
+};
+```
+
+### Easing Functions
+
+<AccordionGroup>
+  <Accordion title="ease-out">
+    Natural deceleration (default for most animations)
+  </Accordion>
+  <Accordion title="ease-in-out">
+    Smooth start and end
+  </Accordion>
+  <Accordion title="spring">
+    Physics-based spring animation (playful, emphasizes motion)
+  </Accordion>
+  <Accordion title="linear">
+    Constant speed (used for typewriter)
+  </Accordion>
+  <Accordion title="reveal">
+    Quick fade-in optimized for content reveals
+  </Accordion>
+  <Accordion title="emphasis">
+    Bounce effect for focus/pulse
+  </Accordion>
+</AccordionGroup>
+
+## Split Mode
+
+The `split` verb enables side-by-side visualization:
+
+```markdown
+{{split}} Let's compare {{show: left}} the unsorted and {{show: right}} sorted arrays.
+```
+
+Split mode:
+- Divides the canvas into two columns
+- Maintains independent slot arrays (left vs. right)
+- Preserves animations per side
+- Unsplit with `{{unsplit}}` to return to single column
+
+## Transform Animations
+
+The `transform` verb morphs one visualization into another:
+
+```typescript
+{
+  verb: "transform",
+  from: "unsorted",
+  to: "sorted",
+  animation: { effect: "spring", durationS: 0.8 }
+}
+```
+
+**Render strategy:**
+1. Detect matching `transformFrom` entries in scene
+2. Apply cross-fade between source and target blocks
+3. Animate bounding box morph using Framer Motion layout animations
+4. Remove source from slots, add target to slots in next scene
+
+## Playback Hooks (src/presentation/use-playback.ts)
+
+High-level hook that orchestrates timeline + scheduler + store:
+
+```typescript
+function usePlayback() {
+  const { status, currentStepIndex, sceneIndex } = usePresentationStore();
+  const step = useCurrentStep();
+  const synthesis = useTTS(step.narration);  // React Query
+  const timeline = useMemo(
+    () => buildTimeline(synthesis, step),
+    [synthesis, step]
+  );
+
+  useEffect(() => {
+    if (status === "playing") {
+      scheduler.start(timeline, audioElement);
+    } else {
+      scheduler.stop();
+    }
+  }, [status, timeline]);
+}
+```
+
+**Data flow:**
+1. User clicks Play → `status = "playing"`
+2. `useEffect` starts scheduler with timeline
+3. Scheduler dispatches `word` and `scene` events
+4. Store updates `currentWordIndex` and `sceneIndex`
+5. React components re-render
+
+## Step Completion Tracking
+
+Steps can be marked complete via callbacks:
+
+```typescript
+loadLesson({
+  lesson: parsedLesson,
+  onStepChange: (index) => {
+    console.log("Now on step", index);
+  },
+  onSlideComplete: (slideId) => {
+    // Save progress to backend
+    saveProgress({ slideId, completedAt: Date.now() });
+  },
+  onLessonComplete: () => {
+    console.log("All steps completed!");
+  }
+});
+```
+
+Completed steps are tracked in `completedStepIds` Set.
+
+## Resolving Current Scene (src/presentation/resolve-scene-at.ts)
+
+Pure function to compute scene state at a given word index (used for scrubbing):
+
+```typescript
+function resolveSceneAt(
+  step: LessonStep,
+  wordIndex: number
+): SceneState {
+  let scene = INITIAL_SCENE;
+  for (const trigger of step.triggers) {
+    if (trigger.wordIndex <= wordIndex) {
+      scene = applyTrigger(scene, trigger);
+    } else {
+      break;
+    }
+  }
+  return scene;
+}
+```
+
+Enables:
+- Instant seek to any point in the lesson
+- Thumbnail previews
+- Progress bar scrubbing
+
+## Best Practices
+
+<Steps>
+  <Step title="Build scenes declaratively">
+    Never mutate scene state. Always return new objects from trigger reducers.
+  </Step>
+  
+  <Step title="Trust the timeline">
+    The timeline is the single source of truth. Don't manually sync audio and visuals.
+  </Step>
+  
+  <Step title="Limit slots per scene">
+    More than 3-4 visualization blocks on screen becomes cluttered. Use `clear` liberally.
+  </Step>
+  
+  <Step title="Match animation duration to narration pace">
+    Fast speech → short animations (0.3s fade). Slow, methodical → longer (0.8s spring).
+  </Step>
+  
+  <Step title="Test playback at different rates">
+    Ensure 0.5x and 2x speeds don't break timing assumptions.
+  </Step>
+</Steps>
+
+## Debugging
+
+### Enable Timeline Logging
+
+```typescript
+// In build-timeline.ts
+console.log("Timeline events:", timeline.map(e => ({
+  timeMs: e.timeMs,
+  kind: e.kind,
+  ...(e.kind === "scene" && { sceneIndex: e.sceneIndex })
+})));
+```
+
+### Inspect Scene State
+
+```typescript
+import { useCurrentScene } from '@/presentation/store';
+
+function DebugPanel() {
+  const scene = useCurrentScene();
+  return <pre>{JSON.stringify(scene, null, 2)}</pre>;
+}
+```
+
+### Validate Scene Sequence
+
+```typescript
+// In parse-lesson.ts
+for (let i = 0; i < step.scenes.length; i++) {
+  const scene = step.scenes[i];
+  console.log(`Scene ${i}:`, {
+    slotCount: scene.slots.length,
+    transition: scene.transition,
+    focus: scene.focus,
+    epoch: scene.epoch
+  });
+}
+```
+
+<Note>
+The presentation engine is **read-only**. All interactivity (user clicks, keyboard shortcuts) updates the store, which triggers re-renders. The underlying lesson IR and timeline never change during playback.
+</Note>

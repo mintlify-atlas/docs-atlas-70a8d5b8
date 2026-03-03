@@ -1,0 +1,302 @@
+---
+title: Lesson
+description: TypeScript types for lesson structure and scene control
+---
+
+The `ParsedLesson` type represents a fully parsed lesson with narration, visualizations, and scene animations.
+
+## ParsedLesson
+
+<ParamField path="title" type="string" required>
+  Lesson title
+</ParamField>
+
+<ParamField path="steps" type="readonly LessonStep[]" required>
+  Sequence of lesson steps (one per H1 section)
+</ParamField>
+
+<ParamField path="diagnostics" type="readonly LessonDiagnostic[]" required>
+  Parser warnings and errors
+</ParamField>
+
+## LessonStep
+
+A single section of a lesson.
+
+<ParamField path="id" type="string" required>
+  Unique step identifier
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  Step title from markdown H1
+</ParamField>
+
+<ParamField path="narration" type="readonly NarrationBlock[]" required>
+  Narration paragraphs with embedded triggers
+</ParamField>
+
+<ParamField path="blocks" type="ReadonlyMap<string, VisualizationState>" required>
+  Named visualization blocks defined in this step
+</ParamField>
+
+<ParamField path="scenes" type="readonly SceneState[]" required>
+  Computed scene states for playback
+</ParamField>
+
+## NarrationBlock
+
+<ParamField path="text" type="string" required>
+  Plain text narration for TTS
+</ParamField>
+
+<ParamField path="triggers" type="readonly Trigger[]" required>
+  Scene control triggers embedded in narration
+</ParamField>
+
+## Trigger
+
+<ParamField path="wordIndex" type="number" required>
+  Zero-based word index in narration block
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Original trigger syntax from markdown
+</ParamField>
+
+<ParamField path="action" type="TriggerVerb" required>
+  Parsed trigger action. See [TriggerVerb](#triggerverb) for variants.
+</ParamField>
+
+## TriggerVerb
+
+Discriminated union of scene control actions. See [Visualization](/api/visualization) for details on animation effects.
+
+<Expandable title="show">
+  <ParamField path="verb" type="'show'" required />
+  <ParamField path="target" type="string" required>
+    Slot name or region to reveal
+  </ParamField>
+  <ParamField path="animation" type="AnimationOverride" required>
+    Enter animation (default or custom)
+  </ParamField>
+</Expandable>
+
+<Expandable title="show-group">
+  <ParamField path="verb" type="'show-group'" required />
+  <ParamField path="targets" type="readonly string[]" required>
+    Multiple targets to show simultaneously
+  </ParamField>
+  <ParamField path="animation" type="AnimationOverride" required />
+</Expandable>
+
+<Expandable title="hide">
+  <ParamField path="verb" type="'hide'" required />
+  <ParamField path="target" type="string" required />
+  <ParamField path="animation" type="AnimationOverride" required />
+</Expandable>
+
+<Expandable title="hide-group">
+  <ParamField path="verb" type="'hide-group'" required />
+  <ParamField path="targets" type="readonly string[]" required />
+  <ParamField path="animation" type="AnimationOverride" required />
+</Expandable>
+
+<Expandable title="transform">
+  <ParamField path="verb" type="'transform'" required />
+  <ParamField path="from" type="string" required>
+    Source slot or region
+  </ParamField>
+  <ParamField path="to" type="string" required>
+    Target slot or region
+  </ParamField>
+  <ParamField path="animation" type="AnimationOverride" required />
+</Expandable>
+
+<Expandable title="clear">
+  <ParamField path="verb" type="'clear'" required />
+  <ParamField path="transition" type="TransitionKind" required>
+    One of: `'fade'` | `'slide'` | `'instant'`
+  </ParamField>
+  <ParamField path="animation" type="AnimationOverride" required />
+</Expandable>
+
+<Expandable title="split">
+  <ParamField path="verb" type="'split'" required />
+  Splits the viewport into two visualization slots.
+</Expandable>
+
+<Expandable title="unsplit">
+  <ParamField path="verb" type="'unsplit'" required />
+  Returns to single-slot layout.
+</Expandable>
+
+<Expandable title="focus">
+  <ParamField path="verb" type="'focus'" required />
+  <ParamField path="target" type="string" required>
+    Region to highlight
+  </ParamField>
+</Expandable>
+
+<Expandable title="pulse">
+  <ParamField path="verb" type="'pulse'" required />
+  <ParamField path="target" type="string" required>
+    Element to pulse
+  </ParamField>
+</Expandable>
+
+<Expandable title="trace">
+  <ParamField path="verb" type="'trace'" required />
+  <ParamField path="target" type="string" required>
+    Graph edge or path to trace
+  </ParamField>
+</Expandable>
+
+<Expandable title="annotate">
+  <ParamField path="verb" type="'annotate'" required />
+  <ParamField path="target" type="string" required>
+    Element to annotate
+  </ParamField>
+  <ParamField path="text" type="string" required>
+    Annotation text
+  </ParamField>
+</Expandable>
+
+<Expandable title="zoom">
+  <ParamField path="verb" type="'zoom'" required />
+  <ParamField path="scale" type="number" required>
+    Zoom factor (1.0 = normal)
+  </ParamField>
+  <ParamField path="target" type="string" required>
+    Region to zoom into
+  </ParamField>
+</Expandable>
+
+<Expandable title="flow">
+  <ParamField path="verb" type="'flow'" required />
+  <ParamField path="target" type="string" required>
+    Animated flow path
+  </ParamField>
+</Expandable>
+
+<Expandable title="pan">
+  <ParamField path="verb" type="'pan'" required />
+  <ParamField path="target" type="string" required>
+    Region to pan to
+  </ParamField>
+</Expandable>
+
+<Expandable title="draw">
+  <ParamField path="verb" type="'draw'" required />
+  <ParamField path="target" type="string" required>
+    Graph edge to draw
+  </ParamField>
+</Expandable>
+
+<Expandable title="play">
+  <ParamField path="verb" type="'play'" required />
+  <ParamField path="target" type="string" required>
+    Animation or media to play
+  </ParamField>
+</Expandable>
+
+<Expandable title="advance">
+  <ParamField path="verb" type="'advance'" required />
+  Advances to the next scene without explicit triggers.
+</Expandable>
+
+## AnimationOverride
+
+Discriminated union for animation configuration.
+
+<Expandable title="default">
+  <ParamField path="kind" type="'default'" required>
+    Use default animation settings
+  </ParamField>
+</Expandable>
+
+<Expandable title="custom">
+  <ParamField path="kind" type="'custom'" required />
+  <ParamField path="effect" type="AnimationEffect" required>
+    One of: `'fade'` | `'slide'` | `'slide-up'` | `'grow'` | `'typewriter'` | `'none'`
+  </ParamField>
+  <ParamField path="durationS" type="number" required>
+    Animation duration in seconds
+  </ParamField>
+  <ParamField path="easing" type="EasingKind" required>
+    One of: `'ease-out'` | `'ease-in-out'` | `'spring'` | `'linear'` | `'reveal'` | `'emphasis'` | `'handoff'`
+  </ParamField>
+</Expandable>
+
+## SceneState
+
+Represents the computed state of a single animation frame.
+
+<ParamField path="slots" type="readonly VisualizationState[]" required>
+  Active visualizations in this scene
+</ParamField>
+
+<ParamField path="transition" type="TransitionKind" required>
+  Scene transition effect
+</ParamField>
+
+<ParamField path="enterEffects" type="readonly SlotEnterEffect[]" required>
+  Enter animations for appearing slots
+</ParamField>
+
+<ParamField path="exitEffects" type="readonly SlotEnterEffect[]" required>
+  Exit animations for disappearing slots
+</ParamField>
+
+<ParamField path="epoch" type="number" required>
+  Scene epoch (incremented on clear)
+</ParamField>
+
+<ParamField path="focus" type="string" required>
+  Currently focused region (empty string if none)
+</ParamField>
+
+<ParamField path="flow" type="string" required>
+  Active flow animation target
+</ParamField>
+
+<ParamField path="pulse" type="string" required>
+  Pulsing element target
+</ParamField>
+
+<ParamField path="trace" type="string" required>
+  Traced path target
+</ParamField>
+
+<ParamField path="transformFrom" type="readonly { readonly to: string; readonly from: string }[]" required>
+  Active transform mappings
+</ParamField>
+
+<ParamField path="annotations" type="readonly SceneAnnotation[]" required>
+  Scene annotations
+</ParamField>
+
+<ParamField path="zoom" type="{ readonly scale: number; readonly target: string }" required>
+  Zoom state
+</ParamField>
+
+<ParamField path="pan" type="string" required>
+  Pan target
+</ParamField>
+
+<ParamField path="draw" type="string" required>
+  Drawing animation target
+</ParamField>
+
+## LessonDiagnostic
+
+<ParamField path="severity" type="'warning' | 'error'" required>
+  Diagnostic level
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Human-readable diagnostic message
+</ParamField>
+
+<ParamField path="location" type="DiagnosticLocation" required>
+  Source location in lesson markdown
+</ParamField>

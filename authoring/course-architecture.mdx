@@ -1,0 +1,349 @@
+---
+title: Course Architecture
+description: Structure courses from top-level lesson-lab rhythm to individual steps and blocks
+---
+
+Course architecture is how you organize teaching material from the macro level (course arc) down to individual steps and visualization blocks.
+
+## The Lesson-Lab Rhythm
+
+Courses alternate between teaching and doing. Every lesson is followed by a lab that makes the learner apply what they just learned.
+
+```
+lesson (concept A)  → lab (apply A)
+lesson (concept B)  → lab (apply A + B)
+lesson (concept C)  → lab (apply A + B + C, or standalone)
+lesson (concept D)  → lab (capstone: everything together)
+```
+
+### Rules for Lesson-Lab Balance
+
+<CardGroup cols={2}>
+  <Card title="Labs Reinforce" icon="check">
+    The learner should feel capable after a lab, not tested. Labs build muscle memory, not anxiety.
+  </Card>
+  
+  <Card title="Labs Are Shorter" icon="clock">
+    If the lab takes longer than the lesson, break it into smaller pieces.
+  </Card>
+  
+  <Card title="Progressive Labs" icon="arrow-up">
+    Lab 2 extends what Lab 1 built. By the final lab, the learner has constructed something real.
+  </Card>
+  
+  <Card title="Orthogonal Concepts" icon="arrows-split-up-and-left">
+    If concept C doesn't depend on A or B, the lab can be self-contained.
+  </Card>
+</CardGroup>
+
+## Course Manifest
+
+Courses live in `~/.handhold/courses/<course-name>/`:
+
+```yaml handhold.yaml
+title: "Course Title: Subtitle"
+description: "One sentence describing what the learner will build or understand"
+tags:
+  - topic1
+  - topic2
+steps:
+  - kind: lesson
+    title: "Lesson 1: The Component Model"
+    path: steps/01-components/
+  - kind: lab
+    title: "Lab 1: Build a Button"
+    path: steps/02-button-lab/
+  - kind: lesson
+    title: "Lesson 2: State and Interactivity"
+    path: steps/03-state/
+  - kind: lab
+    title: "Lab 2: Interactive Counter"
+    path: steps/04-counter-lab/
+```
+
+Each step path points to a directory of sorted `.md` files that are auto-concatenated:
+
+```
+steps/01-components/
+├── 00-meta.md          # Frontmatter (title)
+├── 01-the-problem.md   # First H1 section
+├── 02-functions.md     # Second H1 section
+└── 03-props.md         # Third H1 section
+```
+
+## Arc Design Patterns
+
+Every course has a macro-level arc. Pick one that matches your teaching goal.
+
+### The Sandwich
+
+**Problem → Mechanism → Application**
+
+Open with a concrete problem the audience can feel. Explain the mechanism that solves it. Apply the mechanism to the original problem and show it working.
+
+<Tip>
+Best for: Algorithms, data structures, design patterns. Any topic where "why does this exist?" has a clear answer.
+</Tip>
+
+**Example (Dijkstra course):**
+
+<Steps>
+  <Step title="The Problem">
+    Finding shortest paths in a weighted graph
+  </Step>
+  <Step title="Why Brute Force Fails">
+    Demonstrate the combinatorial explosion
+  </Step>
+  <Step title="How the Graph is Stored">
+    Adjacency list representation
+  </Step>
+  <Step title="The Algorithm">
+    Dijkstra's algorithm walkthrough
+  </Step>
+  <Step title="Walking Through It">
+    Step-by-step trace on a real graph
+  </Step>
+  <Step title="Making It Faster">
+    Priority queue optimization
+  </Step>
+  <Step title="Where It's Used">
+    Real-world applications
+  </Step>
+</Steps>
+
+### The Build-Up
+
+**Simple → Complex, one layer at a time**
+
+Start with the simplest possible version. Add one layer of complexity per step. By the end, the learner has built the full concept incrementally.
+
+<Tip>
+Best for: Frameworks, languages, UI development. Topics where the final result is complex but each individual piece is simple.
+</Tip>
+
+**Example (React course):**
+
+1. Components (functions that return UI)
+2. State (making components interactive)
+3. Composition (combining components)
+4. Styling (making them look good)
+5. Data fetching (connecting to servers)
+6. Polish (design engineering)
+7. Capstone (all of the above in one component)
+
+### The Comparison
+
+**Naive → Better, contrast drives understanding**
+
+Show the naive approach first. Establish its limitations concretely. Then show the better approach and let the contrast do the teaching.
+
+<Tip>
+Best for: Best practices, optimization, refactoring. Topics where "why not just do X?" is the natural first question.
+</Tip>
+
+### The Reveal
+
+**Show the result → Derive why it works**
+
+Present something surprising or counterintuitive. Create mystery. Then work backward to explain the mechanism.
+
+<Tip>
+Best for: Math, cryptography, distributed systems. Topics with non-obvious emergent behavior.
+</Tip>
+
+## Step Planning
+
+### How Many Steps?
+
+**5-9 steps per lesson.** This is a cognitive load limit.
+
+- Fewer than 5 means your steps are too dense
+- More than 9 means you're trying to cover too much — split into two lessons
+
+### Each Step Has One Job
+
+A step teaches exactly one core idea. It has:
+
+- One primary visualization (the thing you're building or explaining)
+- One aha moment (the insight that makes it click)
+- A clear name that reads as part of a narrative
+
+**Good step names read as a story:**
+
+```
+1. The problem
+2. Why brute force fails
+3. How the graph is stored
+4. The algorithm
+5. Walking through it
+6. Making it faster
+7. Where it's used
+```
+
+**Bad step names are categories:**
+
+```
+1. Introduction
+2. Data structures
+3. Implementation
+4. Optimization
+5. Conclusion
+```
+
+### Plan Steps Before Writing
+
+Write the step list first. Each step gets:
+
+- A one-sentence summary of the core idea
+- The primary visualization type (code, data, diagram, preview, split)
+- The aha moment in one sentence
+
+<Warning>
+If you can't articulate the aha moment, the step isn't ready.
+</Warning>
+
+## Block Planning
+
+### List Blocks Before Writing Narration
+
+For each step, enumerate every visualization block you'll need:
+
+```markdown
+Step: "The algorithm"
+Blocks:
+  - code:dijkstra lang=ts (39 lines, the full function)
+  - Regions: init, clamp, pick, mark, relax, check, update, repeat
+  - Inline annotations: "Greedy choice" on line 8, "Relaxation" on line 16
+```
+
+### Naming Rules
+
+<Steps>
+  <Step title="Semantic Names">
+    Describe content: `hash-fn`, `city-map`, `notif-panel`
+  </Step>
+  
+  <Step title="Never Auto-Generated">
+    Don't use `code-0`, `data-1` in triggers
+  </Step>
+  
+  <Step title="Readable in Context">
+    Names should make sense when you read `{{show: hash-fn}}` without context
+  </Step>
+  
+  <Step title="Lowercase, Hyphenated">
+    `bad-button`, `effect-fetch`, `bool-explosion`
+  </Step>
+</Steps>
+
+### Region Planning
+
+Regions map to the concepts in your narration. Define them AFTER you know what you'll explain, but BEFORE you write the narration.
+
+**The process:**
+
+<Steps>
+  <Step title="Write the Code Block">
+    Get the actual code in place
+  </Step>
+  
+  <Step title="Identify Lines">
+    Which lines will you discuss?
+  </Step>
+  
+  <Step title="Group into Regions">
+    Cluster lines into semantic units
+  </Step>
+  
+  <Step title="Name Each Region">
+    After the concept it represents
+  </Step>
+</Steps>
+
+**Good regions:**
+
+```yaml
+signature: 1
+init: 2-5
+loop: 6-12
+return-val: 14
+```
+
+**Bad regions:**
+
+```yaml
+top: 1-3
+middle: 4-8
+bottom: 9-14
+```
+
+### Code Block Sizing
+
+| Purpose | Target Size | Notes |
+|---------|-------------|-------|
+| Problem example (mess) | 30-80 lines | Show scale of the problem |
+| Solution code | 5-25 lines | Focused on the teaching point |
+| Walkthrough trace | 6-10 lines | Short, step-by-step |
+| Type definitions | 5-15 lines | Compact, scannable |
+| Full implementation | 20-40 lines | Needs zoom choreography |
+
+<Warning>
+**The 15-line rule:** Any code block over 15 lines REQUIRES zoom choreography. At normal scale, the bottom of a 20+ line block may be below the viewport. Zoom in on focused regions so the learner can read the code.
+</Warning>
+
+### Preview Block Planning
+
+Previews show what code produces. Plan them alongside code blocks:
+
+```markdown
+Step: "Styling with Tailwind"
+Blocks:
+  - code:tailwind-button lang=tsx (13 lines)
+  - preview:tw-button (HTML: styled button rendering)
+  Layout: split (code left, preview right)
+```
+
+For interactive previews (React template):
+
+- Plan the state and interactions
+- Keep the preview code simple (no build tools, no imports)
+- Use `React.createElement` or compiled JSX via SWC
+- Prefer container queries over media queries for responsive behavior
+
+## Concept Dependency Graph
+
+Before finalizing step order, map dependencies:
+
+```
+A depends on nothing        → teach first
+B depends on A              → teach after A
+C depends on A and B        → teach after B
+D depends on nothing        → can go anywhere (orthogonal)
+E depends on A, B, C, D     → capstone, teach last
+```
+
+<Note>
+Steps that depend on nothing can be reordered freely. Steps with dependencies must follow their prerequisites. The capstone always goes last.
+</Note>
+
+## Transitions Between Steps
+
+Each step should end with a forward hook and begin with a backward connection:
+
+**End of step 3:**
+> We know how the graph is stored. Now let's see the algorithm that traverses it.
+
+**Start of step 4:**
+> Here's Dijkstra's algorithm in code.
+
+The `{{clear: slide}}` trigger creates the visual break. The narration creates the narrative bridge.
+
+<CardGroup cols={2}>
+  <Card title="Writing Lessons" icon="pen" href="/authoring/writing-lessons">
+    Master triggers, blocks, and narration
+  </Card>
+  
+  <Card title="Creating Labs" icon="flask" href="/authoring/creating-labs">
+    Design hands-on coding exercises
+  </Card>
+</CardGroup>

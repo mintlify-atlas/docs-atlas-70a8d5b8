@@ -1,0 +1,399 @@
+---
+title: Preview Visualizations
+description: Live HTML and React component previews in isolated iframes
+---
+
+Preview blocks render HTML or React components in isolated iframes, allowing you to demonstrate UI components, styling, and interactivity.
+
+## Basic Syntax
+
+Use a code fence with the `preview` kind:
+
+````markdown
+```preview:button
+<style>
+  .btn {
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+</style>
+<button class="btn">Click me</button>
+```
+````
+
+**Format**: `` ```preview:name template=type ``
+
+- `name`: Unique identifier for the preview
+- `template`: Either `html` (default) or `react`
+
+## Templates
+
+### HTML Template (`template=html`)
+
+Raw HTML rendered directly in an iframe.
+
+````markdown
+```preview:card
+<style>
+  .card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 300px;
+  }
+  .card h3 {
+    margin: 0 0 8px 0;
+    color: #111827;
+  }
+  .card p {
+    margin: 0;
+    color: #6b7280;
+  }
+</style>
+<div class="card">
+  <h3>Card Title</h3>
+  <p>This is a card component with styled content.</p>
+</div>
+```
+````
+
+- No compilation step
+- Supports inline `<style>` and `<script>` tags
+- Full HTML/CSS/JS capabilities
+
+### React Template (`template=react`)
+
+React components compiled via SWC at runtime.
+
+````markdown
+```preview:counter template=react
+function Counter() {
+  const [count, setCount] = React.useState(0);
+  return React.createElement('button',
+    {
+      onClick: () => setCount(count + 1),
+      style: {
+        padding: '12px 24px',
+        background: '#3b82f6',
+        color: 'white',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer'
+      }
+    },
+    `Count: ${count}`
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  React.createElement(Counter)
+);
+```
+````
+
+- Compiles JSX to JavaScript
+- React and ReactDOM are available globally
+- Use `React.createElement` or JSX syntax
+- Rendered into `<div id="root"></div>`
+
+## Container Queries
+
+Preview content should use **container queries** instead of media queries for responsive behavior, since iframe width varies with split layout.
+
+### HTML Container Queries
+
+````markdown
+```preview:responsive-card
+<style>
+  .wrapper {
+    container-type: inline-size;
+  }
+  .card {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+  @container (min-width: 400px) {
+    .card {
+      display: flex;
+      gap: 16px;
+    }
+  }
+</style>
+<div class="wrapper">
+  <div class="card">
+    <img src="https://via.placeholder.com/100" alt="Placeholder">
+    <div>
+      <h3>Responsive Card</h3>
+      <p>Layout changes based on container width, not viewport.</p>
+    </div>
+  </div>
+</div>
+```
+````
+
+**Key points:**
+- Wrap content in a `container-type: inline-size` parent
+- Use `@container (min-width: ...)` instead of `@media`
+- Cards stack vertically in narrow iframes, switch to horizontal when wide
+
+## Interactive Examples
+
+### HTML with JavaScript
+
+````markdown
+```preview:toggle
+<style>
+  .toggle {
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .message {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    display: none;
+  }
+  .message.visible {
+    display: block;
+  }
+</style>
+<button class="toggle" onclick="toggleMessage()">Show Message</button>
+<div class="message" id="msg">Hello! This is a toggled message.</div>
+<script>
+  function toggleMessage() {
+    const msg = document.getElementById('msg');
+    msg.classList.toggle('visible');
+  }
+</script>
+```
+````
+
+### React with State
+
+````markdown
+```preview:todo template=react
+function TodoApp() {
+  const [todos, setTodos] = React.useState([]);
+  const [input, setInput] = React.useState('');
+
+  const addTodo = () => {
+    if (input.trim()) {
+      setTodos([...todos, input]);
+      setInput('');
+    }
+  };
+
+  return React.createElement('div', { style: { padding: '16px' } },
+    React.createElement('input', {
+      value: input,
+      onChange: (e) => setInput(e.target.value),
+      placeholder: 'Enter todo',
+      style: { padding: '8px', marginRight: '8px' }
+    }),
+    React.createElement('button', {
+      onClick: addTodo,
+      style: { padding: '8px 16px' }
+    }, 'Add'),
+    React.createElement('ul', { style: { marginTop: '16px' } },
+      todos.map((todo, i) =>
+        React.createElement('li', { key: i }, todo)
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  React.createElement(TodoApp)
+);
+```
+````
+
+## Styling
+
+### Inline Styles
+
+````markdown
+```preview:inline-styles
+<div style="
+  padding: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  text-align: center;
+">
+  <h2 style="margin: 0;">Gradient Card</h2>
+  <p style="margin: 8px 0 0 0;">Styled with inline CSS</p>
+</div>
+```
+````
+
+### Style Tag
+
+````markdown
+```preview:styled
+<style>
+  .gradient-card {
+    padding: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .gradient-card h2 {
+    margin: 0;
+  }
+  .gradient-card p {
+    margin: 8px 0 0 0;
+  }
+</style>
+<div class="gradient-card">
+  <h2>Gradient Card</h2>
+  <p>Styled with style tag</p>
+</div>
+```
+````
+
+## Regions
+
+Previews don't have standard region support, but you can define custom regions based on your content:
+
+````markdown
+```preview:demo
+<div id="header">Header</div>
+<div id="content">Content</div>
+<div id="footer">Footer</div>
+---
+top: header
+middle: content
+bottom: footer
+```
+````
+
+Region targets depend on your HTML structure.
+
+## Real Example
+
+````markdown
+# Building a Button Component
+
+{{show: basic-button}} Here's a basic button. {{show: button-states}} We can add hover and active states. {{transform: button-states->final-button}} And finally, we'll add focus styles for accessibility.
+
+```preview:basic-button
+<style>
+  .btn {
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+</style>
+<button class="btn">Click me</button>
+```
+
+```preview:button-states
+<style>
+  .btn {
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+  }
+  .btn:hover {
+    background: #2563eb;
+  }
+  .btn:active {
+    background: #1d4ed8;
+  }
+</style>
+<button class="btn">Click me</button>
+```
+
+```preview:final-button
+<style>
+  .btn {
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .btn:hover {
+    background: #2563eb;
+  }
+  .btn:active {
+    background: #1d4ed8;
+    transform: scale(0.98);
+  }
+  .btn:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+</style>
+<button class="btn">Click me</button>
+```
+````
+
+## Best Practices
+
+### HTML vs React
+
+**Use HTML when:**
+- Demonstrating static layouts
+- Teaching CSS concepts
+- No state management needed
+- Simpler is better
+
+**Use React when:**
+- Demonstrating interactive components
+- Teaching React patterns
+- State management required
+- Complex interactivity
+
+### Responsive Design
+
+- Always use container queries, not media queries
+- Wrap content in `container-type: inline-size` parent
+- Test in split mode (narrower iframes)
+- Use flexible layouts (flexbox, grid)
+
+### Accessibility
+
+- Include focus styles for keyboard navigation
+- Use semantic HTML (`<button>`, `<nav>`, etc.)
+- Add ARIA labels when needed
+- Ensure sufficient color contrast
+
+### Performance
+
+- Keep previews simple (avoid heavy libraries)
+- React compilation happens at runtime (adds latency)
+- For complex demos, prefer HTML template
+- Avoid infinite loops in React components
+
+## Limitations
+
+- React template requires `React.createElement` syntax (JSX is compiled)
+- No external libraries (React/ReactDOM are pre-loaded)
+- Iframe is sandboxed (`sandbox="allow-scripts"`)
+- No network requests from preview code
+- Height is auto-calculated from content

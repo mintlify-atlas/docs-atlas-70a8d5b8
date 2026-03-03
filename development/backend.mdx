@@ -1,0 +1,671 @@
+---
+title: Backend Architecture
+description: Deep dive into the Rust backend, Tauri integration, and native services
+---
+
+The Handhold backend is built with Rust and Tauri 2, providing native functionality for TTS, file system access, terminal emulation, container orchestration, and more.
+
+## Technology Stack
+
+- **Tauri 2**: Desktop application framework with IPC bridge
+- **Rust (edition 2024)**: Systems programming language
+- **SQLite (rusqlite)**: Embedded database for course metadata and progress
+- **portable-pty**: Cross-platform PTY (pseudoterminal) for terminal emulation
+- **reqwest**: Async HTTP client for course downloads
+- **notify**: File system watcher for hot reload
+- **serde/serde_json**: Serialization and deserialization
+- **tokio**: Async runtime (used by dependencies)
+
+## Project Structure
+
+```
+src-tauri/
+├── src/
+│   ├── lib.rs              # App initialization, menu, IPC handler registration
+│   ├── main.rs             # Entry point (calls lib.rs::run)
+│   ├── tts/                # Text-to-speech (Kokoro integration)
+│   │   ├── mod.rs          # TTS event types
+│   │   ├── commands.rs     # Tauri commands (synthesize, export_audio)
+│   │   ├── synth.rs        # Kokoro binary spawning and communication
+│   │   ├── timing.rs       # Word boundary calculation
+│   │   ├── wav.rs          # WAV file parsing
+│   │   └── ...
+│   ├── course/             # Course management
+│   │   ├── mod.rs          # Re-exports
+│   │   ├── import.rs       # Course import from Git/local
+│   │   ├── download.rs     # Download from GitHub
+│   │   ├── queries.rs      # SQLite queries
+│   │   ├── progress.rs     # Step completion tracking
+│   │   ├── sync.rs         # Course directory sync
+│   │   └── types.rs        # Course, Lesson, Lab types
+│   ├── container.rs        # Docker/Podman orchestration
+│   ├── pty.rs              # Terminal emulation
+│   ├── lsp.rs              # Language server protocol bridge
+│   ├── db.rs               # SQLite initialization and schema
+│   ├── fs.rs               # File system operations
+│   ├── git.rs              # Git operations (line diffs, status)
+│   ├── preview.rs          # JSX compilation (Babel via Oxc)
+│   ├── search.rs           # Workspace file search
+│   ├── runner.rs           # Command execution
+│   ├── watcher.rs          # File system watching
+│   ├── settings.rs         # Settings persistence
+│   ├── shell_env.rs        # Shell environment setup
+│   └── paths.rs            # Path utilities
+├── Cargo.toml              # Rust dependencies
+├── tauri.conf.json         # Tauri configuration
+└── build.rs                # Build script
+```
+
+## Core Modules
+
+### Application Initialization
+
+**File**: `src/lib.rs`
+
+The `run()` function initializes the app:
+
+<Steps>
+  <Step title="Initialize database">
+    ```rust
+    let database = db::init().expect("Failed to initialize database");
+    ```
+
+    Creates SQLite database at `~/.handhold/handhold.db` with schema for courses, progress, and settings.
+  </Step>
+
+  <Step title="Set up Tauri builder">
+    ```rust
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(database)
+        .invoke_handler(tauri::generate_handler![/* ... */])
+    ```
+
+    Registers plugins, manages state, and registers IPC handlers.
+  </Step>
+
+  <Step title="Build menu">
+    Creates native menu bar with File, Edit, View, Window menus.
+  </Step>
+
+  <Step title="Run event loop">
+    Starts Tauri event loop and handles app lifecycle events (e.g., cleanup on exit).
+  </Step>
+</Steps>
+
+### TTS (Text-to-Speech)
+
+**Location**: `src/tts/`
+
+Integrates Kokoro TTS engine as a sidecar binary.
+
+#### Architecture
+
+1. Frontend calls `synthesize(text, options)`
+2. Backend spawns `koko` binary as child process
+3. Sends text to stdin as JSON
+4. Receives WAV audio on stdout
+5. Parses WAV to compute word boundaries
+6. Returns audio (base64) + word timings to frontend
+
+#### Key Functions
+
+**`synthesize` command** (`src/tts/commands.rs`)
+
+```rust
+#[tauri::command]
+pub fn synthesize(
+    text: String,
+    voice: Option<String>,
+    speed: Option<f32>,
+) -> Result<SynthesizeResponse, String>
+```
+
+Returns:
+
+```rust
+struct SynthesizeResponse {
+    audio_base64: String,
+    duration_ms: f64,
+    word_timings: Vec<WordTiming>,
+}
+```
+
+**Word Timing Calculation** (`src/tts/timing.rs`)
+
+Divides audio duration evenly across words (simple heuristic). Future enhancement: Use phoneme-level timing from TTS engine.
+
+**Kokoro Binary Management** (`src/tts/synth.rs`)
+
+Spawns `koko` process:
+
+```rust
+let mut child = Command::new(koko_path)
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .spawn()?;
+```
+
+Sends JSON request:
+
+```json
+{
+  "text": "Hello, world!",
+  "voice": "en-us",
+  "speed": 1.0
+}
+```
+
+Reads WAV from stdout.
+
+### Course Management
+
+**Location**: `src/course/`
+
+Handles course discovery, import, metadata, and progress tracking.
+
+#### Database Schema
+
+**Courses Table**:
+
+```sql
+CREATE TABLE courses (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    author TEXT,
+    tags TEXT,  -- JSON array
+    manifest_path TEXT NOT NULL,
+    source_type TEXT,  -- 'git' or 'local'
+    source_url TEXT,
+    created_at INTEGER,
+    updated_at INTEGER
+);
+```
+
+**Progress Table**:
+
+```sql
+CREATE TABLE progress (
+    course_id TEXT,
+    step_id TEXT,
+    completed INTEGER DEFAULT 0,
+    position REAL,  -- Playback position in seconds
+    updated_at INTEGER,
+    PRIMARY KEY (course_id, step_id)
+);
+```
+
+#### Import Flow
+
+**Command**: `course_import`
+
+<Steps>
+  <Step title="Detect source type">
+    If URL is a Git repository, clone to `~/.handhold/courses/<course-id>`.
+
+    If local path, copy to same location.
+  </Step>
+
+  <Step title="Read manifest">
+    Parses `manifest.yml` for course metadata:
+
+    ```yaml
+    title: Introduction to Rust
+    description: Learn Rust fundamentals
+    author: Dutch Casadaban
+    tags: [rust, beginner]
+    lessons:
+      - path: lessons/01-hello-world.md
+        title: Hello World
+    ```
+  </Step>
+
+  <Step title="Insert into database">
+    Stores course metadata in SQLite.
+  </Step>
+
+  <Step title="Return course ID">
+    Frontend can now query lessons and display in browser.
+  </Step>
+</Steps>
+
+#### Progress Tracking
+
+**Commands**:
+
+- `step_complete(course_id, step_id)` - Mark step as complete
+- `step_progress(course_id, step_id)` - Query completion status
+- `slide_position_save(course_id, step_id, position)` - Save playback position
+- `slide_position_load(course_id, step_id)` - Load playback position
+
+### Container Orchestration
+
+**File**: `src/container.rs`
+
+Manages Docker/Podman containers for lab services.
+
+#### Runtime Detection
+
+**Command**: `detect_container_runtime`
+
+Checks for `podman` or `docker` in PATH:
+
+```rust
+if Command::new("podman").arg("--version").output().is_ok() {
+    return Ok("podman");
+}
+if Command::new("docker").arg("--version").output().is_ok() {
+    return Ok("docker");
+}
+Err("No container runtime found")
+```
+
+#### Docker Compose Integration
+
+**Command**: `compose_up`
+
+Runs `docker-compose up -d` (or `podman-compose`):
+
+```rust
+pub fn compose_up(compose_file: String, project_name: String) -> Result<(), String> {
+    let runtime = detect_container_runtime()?;
+    let output = Command::new(runtime)
+        .args(&["compose", "-f", &compose_file, "-p", &project_name, "up", "-d"])
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+```
+
+**Command**: `compose_down`
+
+Stops and removes containers:
+
+```rust
+podman compose -f compose.yml -p lab-xyz down
+```
+
+**Command**: `container_logs`
+
+Streams logs from a container:
+
+```rust
+podman logs -f container-name
+```
+
+### PTY (Terminal Emulation)
+
+**File**: `src/pty.rs`
+
+Provides terminal emulation using `portable-pty`.
+
+#### Architecture
+
+1. Frontend calls `pty_spawn(shell, cwd, env)` → Returns PTY ID
+2. Backend spawns shell process attached to PTY
+3. Frontend sends input via `pty_write(id, data)`
+4. Backend writes to PTY stdin
+5. Backend reads PTY output and sends to frontend via events
+
+#### Key Functions
+
+**`pty_spawn` command**
+
+```rust
+#[tauri::command]
+pub fn pty_spawn(
+    shell: String,
+    cwd: String,
+    env: HashMap<String, String>,
+) -> Result<String, String>
+```
+
+Returns PTY ID (UUID).
+
+**`pty_write` command**
+
+```rust
+#[tauri::command]
+pub fn pty_write(id: String, data: String) -> Result<(), String>
+```
+
+Writes data to PTY stdin.
+
+**`pty_resize` command**
+
+```rust
+#[tauri::command]
+pub fn pty_resize(id: String, cols: u16, rows: u16) -> Result<(), String>
+```
+
+Resizes PTY viewport.
+
+**Output Streaming**
+
+Backend reads PTY output in background thread and emits events to frontend:
+
+```rust
+app.emit_all("pty-data", PtyDataEvent { id, data });
+```
+
+Frontend listens:
+
+```typescript
+import { listen } from '@tauri-apps/api/event';
+
+listen('pty-data', (event) => {
+  const { id, data } = event.payload;
+  terminal.write(data);
+});
+```
+
+### LSP (Language Server Protocol)
+
+**File**: `src/lsp.rs`
+
+Bridges Monaco Editor to language servers (e.g., TypeScript, Rust Analyzer).
+
+#### Architecture
+
+1. Frontend calls `lsp_spawn(language, root_path)` → Returns LSP ID
+2. Backend spawns language server process
+3. Frontend sends LSP requests via `lsp_send(id, message)`
+4. Backend forwards to LSP stdin
+5. Backend reads LSP stdout and emits to frontend
+
+#### Key Functions
+
+**`lsp_spawn` command**
+
+```rust
+#[tauri::command]
+pub fn lsp_spawn(language: String, root_path: String) -> Result<String, String>
+```
+
+Spawns appropriate language server:
+
+- `typescript` → `typescript-language-server`
+- `rust` → `rust-analyzer`
+- `python` → `pyright`
+
+**`lsp_send` command**
+
+```rust
+#[tauri::command]
+pub fn lsp_send(id: String, message: String) -> Result<(), String>
+```
+
+Sends JSON-RPC message to language server.
+
+**Response Streaming**
+
+Backend emits LSP responses as events:
+
+```rust
+app.emit_all("lsp-message", LspMessageEvent { id, message });
+```
+
+### File System Operations
+
+**File**: `src/fs.rs`
+
+Provides file system access for labs.
+
+#### Key Commands
+
+```rust
+#[tauri::command]
+pub fn read_file(path: String) -> Result<String, String>
+
+#[tauri::command]
+pub fn write_file(path: String, content: String) -> Result<(), String>
+
+#[tauri::command]
+pub fn create_dir(path: String) -> Result<(), String>
+
+#[tauri::command]
+pub fn delete_path(path: String) -> Result<(), String>
+
+#[tauri::command]
+pub fn read_dir_recursive(path: String) -> Result<Vec<FileNode>, String>
+```
+
+**Scaffold Copying**
+
+```rust
+#[tauri::command]
+pub fn copy_scaffold(src: String, dest: String) -> Result<(), String>
+```
+
+Copies lab template files to workspace.
+
+### Git Operations
+
+**File**: `src/git.rs`
+
+Provides Git integration for labs.
+
+#### Key Commands
+
+**`git_line_diff` command**
+
+Compares working directory to last commit:
+
+```rust
+#[tauri::command]
+pub fn git_line_diff(repo_path: String, file_path: String) -> Result<Vec<LineDiff>, String>
+```
+
+Returns:
+
+```rust
+struct LineDiff {
+    line_number: usize,
+    change_type: String,  // "added", "removed", "modified"
+}
+```
+
+Used by editor to show git gutters.
+
+**`git_status_files` command**
+
+Lists modified files:
+
+```rust
+#[tauri::command]
+pub fn git_status_files(repo_path: String) -> Result<Vec<String>, String>
+```
+
+### Database
+
+**File**: `src/db.rs`
+
+Initializes SQLite and provides connection pool.
+
+#### Initialization
+
+```rust
+pub fn init() -> Result<Database, rusqlite::Error> {
+    let db_path = dirs::home_dir()
+        .unwrap()
+        .join(".handhold")
+        .join("handhold.db");
+    
+    let conn = Connection::open(db_path)?;
+    
+    // Create tables
+    conn.execute(CREATE_COURSES_TABLE, [])?;
+    conn.execute(CREATE_PROGRESS_TABLE, [])?;
+    
+    Ok(Database { conn: Arc::new(Mutex::new(conn)) })
+}
+```
+
+#### State Management
+
+Database is managed via Tauri state:
+
+```rust
+.manage(database)
+```
+
+Commands access it:
+
+```rust
+#[tauri::command]
+pub fn course_list(state: State<Database>) -> Result<Vec<Course>, String> {
+    let conn = state.conn.lock();
+    // Query database
+}
+```
+
+### Preview Compilation
+
+**File**: `src/preview.rs`
+
+Compiles JSX to JavaScript using the Oxc (Oxidation Compiler) toolchain.
+
+**Command**: `compile_jsx`
+
+```rust
+#[tauri::command]
+pub fn compile_jsx(code: String) -> Result<String, String>
+```
+
+Transforms:
+
+```jsx
+function App() {
+  return <div>Hello</div>;
+}
+```
+
+To:
+
+```javascript
+function App() {
+  return React.createElement('div', null, 'Hello');
+}
+```
+
+### Command Execution
+
+**File**: `src/runner.rs`
+
+Runs shell commands and captures output.
+
+**Command**: `run_command`
+
+```rust
+#[tauri::command]
+pub fn run_command(
+    command: String,
+    args: Vec<String>,
+    cwd: String,
+) -> Result<CommandOutput, String>
+```
+
+Returns:
+
+```rust
+struct CommandOutput {
+    stdout: String,
+    stderr: String,
+    exit_code: i32,
+}
+```
+
+**Dependency Checking**
+
+```rust
+#[tauri::command]
+pub fn check_dependency(name: String) -> Result<bool, String>
+```
+
+Checks if a binary exists in PATH.
+
+### File Watching
+
+**File**: `src/watcher.rs`
+
+Watches directories for file changes using `notify`.
+
+**Commands**:
+
+```rust
+#[tauri::command]
+pub fn watch_dir(path: String) -> Result<String, String>
+
+#[tauri::command]
+pub fn unwatch_dir(id: String) -> Result<(), String>
+```
+
+Emits events on file changes:
+
+```rust
+app.emit_all("file-changed", FileChangedEvent { path });
+```
+
+## IPC Communication
+
+All backend functions are exposed as Tauri commands using the `#[tauri::command]` macro.
+
+Frontend invokes via `@tauri-apps/api`:
+
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+const result = await invoke('read_file', { path: '/path/to/file' });
+```
+
+## Error Handling
+
+Commands return `Result<T, String>`:
+
+- `Ok(value)` → Frontend receives value
+- `Err(message)` → Frontend receives error message
+
+Frontend handles errors:
+
+```typescript
+try {
+  const data = await invoke('read_file', { path });
+} catch (error) {
+  console.error('Failed to read file:', error);
+}
+```
+
+## Performance Considerations
+
+- **Async operations**: Long-running tasks (e.g., course download) should use async/await to avoid blocking
+- **Batch operations**: Minimize IPC calls by batching when possible
+- **Caching**: Frontend caches TTS audio, course metadata, etc., to reduce backend calls
+
+## Security
+
+- **Path validation**: All file operations validate paths to prevent directory traversal
+- **Command injection**: Shell commands are carefully constructed to avoid injection
+- **CSP**: Content Security Policy is disabled for preview iframes (configurable)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Explore the React frontend
+  </Card>
+  <Card title="Parser" icon="code" href="/development/parser">
+    Understand the markdown parser
+  </Card>
+  <Card title="Presentation Engine" icon="play" href="/development/presentation-engine">
+    Learn how playback works
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    High-level system overview
+  </Card>
+</CardGroup>

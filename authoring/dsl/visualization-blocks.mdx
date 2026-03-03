@@ -1,0 +1,658 @@
+---
+title: Visualization Blocks
+description: Complete reference for all visualization block types in the Handhold DSL
+---
+
+Visualization blocks are Markdown code fences with a specific lang tag format:
+
+````markdown
+```kind:name param=value
+content
+---
+region-name: target
+```
+````
+
+Every block has:
+1. **Lang tag:** `kind:name` where `kind` determines the block type and `name` is the unique identifier
+2. **Parameters:** Optional key-value pairs after the lang tag
+3. **Content:** The visualization data/source
+4. **Regions:** Optional named sub-elements below a `---` separator (see [Regions](/authoring/dsl/regions))
+
+## Code Blocks
+
+Syntax-highlighted source code with line-level animation and focus.
+
+````markdown
+```code:hash-fn lang=ts
+function hash(key: string): number {
+  let h = 0
+  for (const ch of key) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0
+  }
+  return h
+}
+---
+signature: 1
+init: 2
+loop: 3-5
+return-val: 7
+```
+````
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `lang` | string | Yes | Syntax highlighting language |
+
+### Supported Languages
+
+`typescript`, `javascript`, `tsx`, `jsx`, `python`, `rust`, `go`, `java`, `c`, `cpp`, `sql`, `bash`, `json`, `yaml`, `html`, `css`, `text`
+
+### Inline Annotations
+
+Add `// ! annotation text` on a code line. Stripped from display, rendered as floating callout.
+
+```typescript
+h = (h * 31 + ch.charCodeAt(0)) | 0  // ! Bitwise clamp to 32-bit int
+```
+
+### Region Targets
+
+Line numbers, ranges, or combinations:
+
+```
+single-line: 5
+range: 3-8
+multiple: 1, 4-6, 9
+mixed: 1, 3-5, 8
+```
+
+### Shorthand
+
+A bare language tag like `` ```typescript `` works as `` ```code lang=ts ``.
+
+---
+
+## Data Blocks
+
+Data structure visualizations. 40+ types across 12 layout primitives.
+
+### Linear Structures
+
+#### Array
+
+````markdown
+```data:names type=array
+["Alice", "Bob", "Dana", "Eve"]
+^check=0
+---
+first: 0
+found: 2
+```
+````
+
+**Format:**
+- Values in square brackets, comma-separated
+- Pointers: `^pointer-name=index`
+- Regions target indices
+
+#### Stack
+
+````markdown
+```data:call-stack type=stack
+[main, foo, bar, baz]
+^top=3
+```
+````
+
+- Vertical column, bottom = index 0
+- `^top=N` pointer
+
+#### Queue
+
+````markdown
+```data:q type=queue
+[A, B, C, D, E]
+^front=0 ^rear=4
+```
+````
+
+- Horizontal row with front/rear pointers
+
+#### Deque
+
+````markdown
+```data:dq type=deque
+[A, B, C, D]
+^front=0 ^rear=3
+```
+````
+
+- Same as queue with bidirectional arrows at both ends
+
+#### Ring Buffer
+
+````markdown
+```data:buf type=ring-buffer capacity=8
+[10, 20, 30, _, _, _, _, 80]
+^head=0 ^tail=2
+```
+````
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `capacity` | number | Yes | Total slots in the ring |
+
+- Cells on a circle
+- Active segment (head→tail) accent-colored
+- Use `_` for empty slots
+
+---
+
+### Chain Structures
+
+#### Linked List
+
+````markdown
+```data:chain type=linked-list
+(head Alice) -> (n2 Bob) -> null
+---
+first: head
+second: n2
+```
+````
+
+**Format:**
+- Nodes: `(id value)`
+- Links: `->`
+- Terminus: `-> null`
+- Blank line separates disconnected groups
+
+#### Doubly Linked List
+
+````markdown
+```data:dll type=doubly-linked-list
+(a 10) <-> (b 20) <-> (c 30) -> null
+^head: a  ^tail: c
+```
+````
+
+- Same as linked-list but edges are bidirectional (`<->`)
+
+#### Skip List
+
+````markdown
+```data:sl type=skip-list
+L3: (H) -> (6) -> (nil)
+L2: (H) -> (3) -> (6) -> (nil)
+L1: (H) -> (1) -> (3) -> (4) -> (6) -> (nil)
+L0: (H) -> (1) -> (2) -> (3) -> (4) -> (5) -> (6) -> (nil)
+```
+````
+
+- One line per level (highest first)
+- Same node at multiple levels vertically aligned
+
+---
+
+### Tree Structures
+
+#### Tree
+
+N-ary tree with 15 variants. Replaces legacy `binary-tree`.
+
+**Indentation format (n-ary):**
+````markdown
+```data:dom type=tree
+(nav)
+  (a:Home)
+  (a:About)
+  (a:Contact)
+```
+````
+
+**Array format (binary, backward compat):**
+````markdown
+```data:heap type=tree variant=heap-min
+[1, 3, 5, 7, 9, 8, 6]
+```
+````
+
+**Annotated format (red-black, AVL, etc.):**
+````markdown
+```data:rbt type=tree variant=red-black
+(7:B)
+  (3:R)
+    (1:B)
+    (5:B)
+  (10:R)
+    (8:B)
+    (15:B)
+```
+````
+
+**Format:**
+- `(id)` or `(id:annotation)` — annotation is text after colon
+- 2-space indent = one level deeper
+- First unindented node = root
+- `^name: nodeId` for pointers
+
+**Variants:**
+
+`generic` (default), `bst`, `avl`, `red-black`, `heap-min`, `heap-max`, `splay`, `treap`, `aa`, `segment`, `interval`, `fenwick`, `merkle`, `kd`, `rope`
+
+**Note:** `binary-tree` is an alias for `tree` (backward compat).
+
+#### B-Tree Family
+
+````markdown
+```data:index type=b-tree order=3
+(root: 10, 20)
+  (a: 3, 5, 8)
+  (b: 12, 15)
+  (c: 25, 30, 40)
+```
+````
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `order` | number | Yes | Maximum keys per node |
+| `variant` | string | No | `b-tree`, `b-plus-tree`, `2-3-tree`, `2-3-4-tree` |
+
+**Format:**
+- Wide-rect nodes containing multiple keys: `(id: k1, k2, k3)`
+- Indentation for children
+- B+ tree adds horizontal leaf links: use `variant=b-plus-tree`
+
+#### Trie Family
+
+````markdown
+```data:words type=trie
+()
+  (c)
+    (a)
+      (t*)
+      (r*)
+  (d)
+    (o)
+      (g*)
+```
+````
+
+**Format:**
+- `*` = terminal node (gets filled marker)
+- Single-char nodes for trie, multi-char for radix-tree
+
+**Variants:**
+
+`trie` (default), `radix-tree`, `suffix-tree`
+
+---
+
+### Hash and Probabilistic Structures
+
+#### Hash Map
+
+````markdown
+```data:phonebook type=hash-map
+0: (alice 555-1234) -> (bob 555-5678)
+1:
+2: (charlie 555-9012)
+3:
+```
+````
+
+**Format:**
+- Vertical bucket column on left
+- Horizontal chains extend right
+- `N:` = bucket index
+- `(id value)` = chain nodes
+
+#### Bit Array / Bloom Filter
+
+````markdown
+```data:bf type=bit-array variant=bloom-filter
+[0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]
+h1: 1, 4, 10
+h2: 6, 13
+```
+````
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `variant` | string | No | `bloom-filter`, `cuckoo-filter`, `count-min-sketch`, `hyperloglog` |
+| `rows` | number | No | Multiple rows (count-min sketch) |
+
+**Format:**
+- Row of small square cells
+- Active bits = accent fill
+- Hash function lines: `name: idx1, idx2, ...`
+
+---
+
+### Matrix
+
+````markdown
+```data:adj type=matrix
+    A  B  C  D
+A [ 0, 1, 0, 1 ]
+B [ 1, 0, 1, 0 ]
+C [ 0, 1, 0, 1 ]
+D [ 1, 0, 1, 0 ]
+```
+````
+
+**Format:**
+- 2D grid with row/column headers
+- First line = column labels
+- Data rows = `Label [ values ]`
+
+---
+
+### Graph
+
+````markdown
+```data:network type=graph layout=force
+A -> B, C: 5
+B -- D
+C -> D: 3
+---
+entry: A
+exits: C, D
+```
+````
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `layout` | string | No | `ring` (default), `force`, `tree`, `grid`, `bipartite` |
+
+**Format:**
+- Directed: `->`
+- Undirected: `--`
+- Weights: `: N`
+
+---
+
+### Composite Structures
+
+#### Union-Find
+
+````markdown
+```data:uf type=union-find
+elements: [A, B, C, D, E, F]
+parent:   [0, 0, 1, 3, 3, 4]
+rank:     [2, 1, 0, 1, 0, 0]
+```
+````
+
+- Dual view: parent array on top, forest below
+
+#### LSM Tree
+
+````markdown
+```data:lsm type=lsm-tree
+memtable: [5, 12, 3, 8]
+L0: [1, 4, 7] [2, 6, 9]
+L1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+```
+````
+
+- Vertical stack
+- Memtable at top, levels below with sorted runs
+
+#### Fibonacci Heap
+
+````markdown
+```data:fh type=fibonacci-heap
+tree1: (3) -> (7) -> (18) -> (24)
+tree2: (17) -> (30)
+tree3: (23) -> (26) -> (46)
+min: 3
+marked: 26
+```
+````
+
+- Multiple trees in a row
+- Root chain with doubly-linked dashed edges
+- Min pointer from above
+
+---
+
+## Diagram Blocks
+
+Architecture-style node-and-edge diagrams.
+
+````markdown
+```diagram:system
+client [client]
+gw [api-gateway]
+api [service]
+db [database]
+cache [cache]
+
+client --> gw
+gw --> api
+api --> db
+api --reads--> cache
+
+{Backend: gw, api, db, cache}
+---
+storage: db
+fast-path: cache
+gateway: gw
+```
+````
+
+### Node Definition
+
+**Syntax:** `nodeId [type]` or `nodeId [type key=value]`
+
+**Node IDs:** Letters, digits, underscores, hyphens (e.g., `my-api`, `cache_01`)
+
+**Node types:**
+
+`service` (default), `database`, `client`, `user`, `server`, `cache`, `queue`, `message-queue`, `load-balancer`, `api-gateway`
+
+### Icons
+
+**Rendering:** Nodes render as **icons with a label below** (not boxes). Every node gets an AWS icon by default based on its type.
+
+**Icon override:** Add `icon=aws:<key>` to force a specific AWS icon:
+
+```
+gw [api-gateway icon=aws:apigateway]
+cdn [type=service icon=aws:cloudfront]
+```
+
+**Available AWS icon keys:**
+
+| Key | Aliases | Maps To |
+|-----|---------|----------|
+| `apigateway` | `api-gateway` | Amazon API Gateway |
+| `elb` | `load-balancer` | Elastic Load Balancing |
+| `rds` | `database` | Amazon RDS |
+| `elasticache` | `cache` | Amazon ElastiCache |
+| `sqs` | `queue`, `message-queue` | Amazon SQS |
+| `s3` | `object-store` | S3 Standard |
+| `cloudfront` | `cdn` | Amazon CloudFront |
+| `cognito` | `auth` | Amazon Cognito |
+| `ec2` | `server`, `service`, `compute` | Amazon EC2 |
+| `client` | — | Resource Client |
+| `user` | `users` | Resource User |
+
+### Edges
+
+- `a --> b` — directed edge
+- `a --label--> b` — labeled edge
+
+### Groups
+
+`{Group Name: node1, node2}` — visual cluster
+
+### Regions
+
+Target node IDs.
+
+---
+
+## Math Blocks
+
+LaTeX expressions via KaTeX.
+
+````markdown
+```math:quadratic
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+
+y = mx + b
+```
+````
+
+**Format:**
+- Expressions separated by blank lines
+- Auto-IDs: `expr-0`, `expr-1`, ...
+- Regions target expression IDs
+
+---
+
+## Chart Blocks
+
+Data visualizations with labeled axes.
+
+**Simple format:**
+````markdown
+```chart:quarterly type=bar
+Q1: 100
+Q2: 150
+Q3: 120
+Q4: 200
+---
+growth: Q2, Q3
+```
+````
+
+**Table format:**
+````markdown
+```chart:comparison type=line
+| Month | 2024 | 2025 |
+|-------|------|------|
+| Jan   | 100  | 120  |
+| Feb   | 150  | 180  |
+```
+````
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | string | No | `bar` (default), `line`, `scatter`, `area` |
+
+---
+
+## Preview Blocks
+
+HTML or React rendered in an isolated iframe.
+
+**Raw HTML:**
+````markdown
+```preview:button
+<style>
+  .btn { padding: 12px 24px; background: #3b82f6; color: white; }
+</style>
+<button class="btn">Click me</button>
+```
+````
+
+**React (compiled via SWC):**
+````markdown
+```preview:counter template=react
+function Counter() {
+  var _s = React.useState(0);
+  var count = _s[0], setCount = _s[1];
+  return React.createElement('button',
+    { onClick: function() { setCount(count + 1); } },
+    'Count: ' + count
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(
+  React.createElement(Counter)
+);
+```
+````
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `template` | string | No | `html` (default), `react` |
+
+**Container queries:** Preview content should use `@container` queries (not `@media`) for responsive behavior. The iframe width varies with split layout.
+
+```html
+<style>
+  .wrapper { container-type: inline-size; }
+  @container (min-width: 400px) { .card { flex-direction: row; } }
+</style>
+<div class="wrapper">...</div>
+```
+
+---
+
+## TypeScript Definition
+
+From `src/types/lesson.ts`:
+
+```typescript
+export type VisualizationState =
+  | CodeState
+  | DataState
+  | DiagramState
+  | MathState
+  | ChartState
+  | PreviewState;
+
+export type CodeState = {
+  readonly kind: "code";
+  readonly name: string;
+  readonly lang: string;
+  readonly fileName: string;
+  readonly content: string;
+  readonly focus: readonly FocusRange[];
+  readonly annotations: readonly CodeAnnotation[];
+  readonly regions: readonly RegionDef[];
+};
+
+export type DataState = {
+  readonly kind: "data";
+  readonly name: string;
+  readonly data:
+    | ArrayData
+    | LinkedListData
+    | TreeData
+    | StackData
+    | HashMapData
+    | GraphData
+    | QueueData
+    | DequeData
+    | RingBufferData
+    | DoublyLinkedListData
+    | SkipListData
+    | BTreeData
+    | TrieData
+    | BitArrayData
+    | MatrixData
+    | UnionFindData
+    | LsmTreeData
+    | FibonacciHeapData;
+  readonly regions: readonly RegionDef[];
+};
+```

@@ -1,0 +1,451 @@
+---
+title: 'TTS Narration'
+description: 'High-quality text-to-speech with word-level timing using Kokoro'
+icon: 'volume'
+---
+
+Handhold uses **Kokoro**, a fast, high-quality neural TTS model, to synthesize narration with precise word-level timing. The TTS system runs entirely offline with no API dependencies.
+
+## Architecture
+
+The TTS pipeline spans Rust (Tauri backend) and TypeScript (React frontend):
+
+```
+Narration Text
+    ↓ (split-sentences)
+Sentence Array
+    ↓ (koko CLI)
+WAV Audio + TSV Timing
+    ↓ (merge)
+Single Audio Track + Word Timings
+    ↓ (base64 encode)
+SynthesisResult
+    ↓ (audio-player.ts)
+HTML5 Audio Playback
+```
+
+## Kokoro Model
+
+**Kokoro** is a lightweight ONNX-based TTS model optimized for speed and quality:
+
+- **Model size:** ~50MB (onnx) + ~30MB (voices)
+- **Inference speed:** ~0.2s for a 10-word sentence on M1 Mac
+- **Voice quality:** Natural prosody, minimal robotic artifacts
+- **Voices:** 60+ voices (American, British, Australian accents)
+
+### Model Files
+
+Kokoro requires two files in the app resources:
+
+```
+resources/
+├── kokoro-v1.0.onnx      # Neural TTS model
+└── voices-v1.0.bin       # Voice embeddings
+```
+
+These are bundled with the Tauri app and resolved at runtime (src-tauri/src/tts/paths.rs).
+
+## Voice Selection
+
+Default voice: `am_michael` (American male)
+
+Override via environment variable:
+
+```bash
+export HANDHOLD_TTS_VOICE=bf_emma  # British female
+```
+
+If the selected voice fails, the system falls back to `bf_emma` (src-tauri/src/tts/synth.rs:46-73).
+
+## Synthesis Process
+
+### 1. Sentence Splitting (src-tauri/src/tts/split.rs)
+
+Narration text is split into sentences to improve timing accuracy:
+
+```rust
+fn split_sentences(text: &str) -> Vec<(usize, &str)> {
+    // Returns: [(char_offset, sentence_text), ...]
+    // Splits on: . ! ? with trailing space/newline
+    // Preserves sentence boundaries for timing alignment
+}
+```
+
+**Example:**
+```
+"Hello world. This is a test."
+  ↓
+[(0, "Hello world."), (13, "This is a test.")]
+```
+
+### 2. Koko Invocation (src-tauri/src/tts/synth.rs)
+
+Each sentence is synthesized independently:
+
+```rust
+let output = Command::new(&koko_bin)
+    .env("ESPEAK_DATA_PATH", espeak_data)
+    .args([
+        "-m", model_path,
+        "-d", voices_path,
+        "-s", voice,          // e.g., "am_michael"
+        "--mono",             // Single audio channel
+        "text", sentence,
+        "--timestamps",       // Generate word timings
+        "-o", wav_path
+    ])
+    .output()?;
+```
+
+**Outputs:**
+- `temp_N.wav` - 16-bit PCM WAV audio
+- `temp_N.tsv` - Word timing data
+
+### 3. Word Timing Extraction (src-tauri/src/tts/timing.rs)
+
+TSV format from Koko:
+
+```tsv
+0	120	Hello
+120	250	world
+```
+
+Columns: `start_ms`, `end_ms`, `word`
+
+Parsed into:
+
+```rust
+pub struct WordTiming {
+    pub word: String,
+    pub word_index: usize,
+    pub char_offset: usize,
+    pub start_ms: f64,
+    pub end_ms: f64,
+}
+```
+
+**Global offset accounting:** Word timings from sentence N are offset by the cumulative duration of sentences 0..N-1.
+
+### 4. Audio Concatenation (src-tauri/src/tts/wav.rs)
+
+All sentence WAVs are concatenated into a single audio buffer:
+
+```rust
+fn concatenate_wav_buffers(wavs: Vec<Vec<u8>>) -> Vec<u8> {
+    let mut pcm_data = Vec::new();
+    for wav in wavs {
+        let (pcm, sample_rate) = wav_to_int16_pcm(&wav)?;
+        pcm_data.extend_from_slice(&pcm);
+    }
+    int16_pcm_to_wav(pcm_data, sample_rate)
+}
+```
+
+**Sample rate:** 24000 Hz (Kokoro default)
+
+**Format:** Mono, 16-bit PCM
+
+### 5. Base64 Encoding
+
+Final WAV is base64-encoded for transfer to frontend:
+
+```rust
+let audio_base64 = general_purpose::STANDARD.encode(&wav_bytes);
+```
+
+Decoded in the browser:
+
+```typescript
+const audioBlob = new Blob(
+  [Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0))],
+  { type: 'audio/wav' }
+);
+const audioUrl = URL.createObjectURL(audioBlob);
+```
+
+## TTS Events (src-tauri/src/tts/mod.rs)
+
+The Rust backend streams events to the frontend via Tauri channels:
+
+```rust
+pub enum TTSEvent {
+    WordBoundary {
+        word: String,
+        word_index: usize,
+        char_offset: usize,
+        start_ms: f64,
+        end_ms: f64,
+    },
+    AudioReady {
+        audio_base64: String,
+        duration_ms: f64,
+    },
+}
+```
+
+**Frontend handler:**
+
+```typescript
+const onEvent = new Channel<TTSEvent>();
+
+onEvent.onmessage = (event) => {
+  if (event.event === "wordBoundary") {
+    wordTimings.push(event.data);
+  } else if (event.event === "audioReady") {
+    resolve({ wordTimings, audioBase64: event.data.audioBase64 });
+  }
+};
+
+invoke("synthesize", { text, onEvent });
+```
+
+## SynthesisResult Type (src/tts/synthesize.ts)
+
+```typescript
+type SynthesisResult = {
+  wordTimings: WordTiming[];  // Array of word boundaries
+  audioBase64: string;        // Base64-encoded WAV
+  durationMs: number;         // Total audio duration
+};
+```
+
+Used by `buildTimeline` to sync scenes with audio.
+
+## Audio Player (src/tts/audio-player.ts)
+
+Wraps HTML5 `<audio>` element with playback controls:
+
+```typescript
+class AudioPlayer {
+  private audio: HTMLAudioElement;
+
+  load(audioBase64: string) {
+    const blob = base64ToBlob(audioBase64);
+    this.audio.src = URL.createObjectURL(blob);
+  }
+
+  play() {
+    this.audio.play();
+  }
+
+  pause() {
+    this.audio.pause();
+  }
+
+  setPlaybackRate(rate: number) {
+    this.audio.playbackRate = rate;  // 0.5x - 2x
+  }
+
+  get currentTime(): number {
+    return this.audio.currentTime * 1000;  // Convert to ms
+  }
+}
+```
+
+## Prefetching (src/tts/use-prefetch-tts.ts)
+
+Lessons prefetch TTS for all steps to eliminate load delays:
+
+```typescript
+function usePrefetchTTS(lesson: ParsedLesson) {
+  const { data: prefetchedAudio } = useQuery({
+    queryKey: ['tts-prefetch', lesson.title],
+    queryFn: async () => {
+      const results = new Map<string, SynthesisResult>();
+      for (const step of lesson.steps) {
+        const text = step.narration.map(b => b.text).join(' ');
+        const result = await synthesize(text);
+        results.set(step.id, result);
+      }
+      return results;
+    },
+    staleTime: Infinity,  // Cache forever (lessons don't change)
+  });
+
+  return prefetchedAudio;
+}
+```
+
+Enables instant playback when user clicks Play.
+
+## Bundled Audio Export (src-tauri/src/tts/bundle.rs)
+
+Lessons can be exported with pre-rendered audio to skip synthesis at runtime:
+
+```rust
+#[tauri::command]
+pub async fn export_audio(
+    texts: Vec<String>,
+    bundle_dir: String,
+    app: AppHandle,
+) -> Result<usize, String> {
+    let mut count = 0;
+    for (idx, text) in texts.iter().enumerate() {
+        let hash = hash_text(text);
+        let output_path = format!("{bundle_dir}/{hash}.wav");
+        if !Path::new(&output_path).exists() {
+            synthesize_and_save(text, &output_path, &app)?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+```
+
+**Bundle structure:**
+
+```
+lesson-bundle/
+├── lesson.json              # ParsedLesson IR
+└── audio/
+    ├── a3f2e1b9.wav        # Hashed by narration text
+    └── c8d4f7a2.wav
+```
+
+Bundles are loaded via:
+
+```typescript
+loadLesson({
+  lesson: parsedLesson,
+  bundlePath: "/path/to/lesson-bundle/audio"
+});
+```
+
+When `bundlePath` is provided, synthesis is skipped and audio is loaded from disk.
+
+## Word Highlighting
+
+Word timings enable real-time narration highlighting:
+
+```typescript
+function NarrationText({ text, currentWordIndex }: Props) {
+  const words = text.split(/\s+/);
+  return (
+    <p>
+      {words.map((word, i) => (
+        <span
+          key={i}
+          className={i === currentWordIndex ? 'highlight' : ''}
+        >
+          {word}
+        </span>
+      ))}
+    </p>
+  );
+}
+```
+
+The presentation scheduler updates `currentWordIndex` based on `wordBoundary` events.
+
+## Platform-Specific Paths
+
+### macOS (src-tauri/src/tts/paths.rs)
+
+```rust
+fn resolve_espeak_data_path(app: &AppHandle) -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    return Some(app.path().resource_dir()?.join("espeak-ng-data"));
+    #[cfg(not(target_os = "macos"))]
+    return None;  // Use system espeak-ng
+}
+```
+
+On macOS, espeak-ng data is bundled in the app. On Linux/Windows, it's expected in system paths.
+
+### Koko Binary Resolution
+
+```rust
+fn resolve_koko_binary() -> Result<PathBuf, String> {
+    which::which("koko").map_err(|_| "koko binary not found in PATH".to_string())
+}
+```
+
+Koko must be installed and available in `PATH`.
+
+## Performance Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Synthesis Speed" icon="bolt">
+    ~0.2s per sentence on modern hardware (M1, i7)
+  </Card>
+  <Card title="Memory Usage" icon="memory">
+    ~100MB for model + audio buffers
+  </Card>
+  <Card title="Audio Quality" icon="star">
+    24kHz, 16-bit PCM (transparent quality)
+  </Card>
+  <Card title="Latency" icon="stopwatch">
+    Less than 1s for typical lesson step (5-10 sentences)
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Koko Not Found
+
+```bash
+# Install koko (assumes Rust/Cargo installed)
+cargo install kokoro-cli
+
+# Verify installation
+which koko  # Should print path to binary
+```
+
+### Voice Fails to Load
+
+Check that `voices-v1.0.bin` exists in resources:
+
+```bash
+ls resources/voices-v1.0.bin
+```
+
+If missing, download from Kokoro releases.
+
+### espeak-ng Data Missing (macOS)
+
+```bash
+# Ensure bundled data exists
+ls resources/espeak-ng-data/
+```
+
+On Linux, install system package:
+
+```bash
+sudo apt install espeak-ng-data
+```
+
+### Timing Drift
+
+If word highlights desync from audio:
+
+1. Check that `audio.playbackRate` matches presentation rate
+2. Verify timeline events are sorted by `timeMs`
+3. Ensure no duplicate word indices in timings
+
+## Best Practices
+
+<Steps>
+  <Step title="Keep narration natural">
+    Write conversational text. Kokoro handles natural speech patterns better than formal prose.
+  </Step>
+  
+  <Step title="Split long paragraphs">
+    Limit narration blocks to 2-3 sentences for better timing granularity.
+  </Step>
+  
+  <Step title="Avoid special characters">
+    Koko may mispronounce code syntax. Use plain English descriptions.
+  </Step>
+  
+  <Step title="Test with different voices">
+    Some voices handle technical terms better than others.
+  </Step>
+  
+  <Step title="Export bundles for distribution">
+    Pre-render audio to eliminate synthesis time for end users.
+  </Step>
+</Steps>
+
+<Note>
+The TTS system is fully **offline**. No API keys, no network requests, no usage limits. All synthesis happens locally using the bundled Kokoro model.
+</Note>

@@ -1,0 +1,690 @@
+---
+title: Parser Deep Dive
+description: How Handhold transforms markdown into interactive lessons
+---
+
+The parser is the bridge between markdown source files and the presentation engine. It transforms human-authored course content into a structured intermediate representation (IR) that drives animations, visualizations, and interactivity.
+
+## Overview
+
+The parser takes markdown input and produces a `ParsedLesson` object:
+
+```typescript
+type ParsedLesson = {
+  readonly title: string;
+  readonly steps: readonly LessonStep[];
+  readonly diagnostics: readonly LessonDiagnostic[];
+};
+```
+
+Each `LessonStep` contains:
+
+- **Narration blocks**: Text read aloud by TTS
+- **Visualization blocks**: Code, data structures, diagrams, charts, previews
+- **Triggers**: Commands that fire at word positions to control the stage
+- **Scene sequence**: Timeline of stage states
+
+## Parsing Pipeline
+
+The parser runs through these stages:
+
+<Steps>
+  <Step title="Markdown to AST">
+    Uses `unified` and `remark-parse` to convert markdown into an abstract syntax tree (MDAST).
+
+    ```typescript
+    import { unified } from 'unified';
+    import remarkParse from 'remark-parse';
+    import remarkFrontmatter from 'remark-frontmatter';
+
+    const tree = unified()
+      .use(remarkParse)
+      .use(remarkFrontmatter, ['yaml'])
+      .parse(markdown);
+    ```
+  </Step>
+
+  <Step title="Extract frontmatter">
+    Parses YAML frontmatter to extract lesson metadata:
+
+    ```yaml
+    ---
+    title: How Hash Maps Work
+    ---
+    ```
+
+    If no title is provided, defaults to "Untitled".
+  </Step>
+
+  <Step title="Segment into steps">
+    Splits the lesson at H1 headings (`#`). Each H1 becomes a step.
+
+    ```markdown
+    # Introduction
+    Content for step 0...
+
+    # The Algorithm
+    Content for step 1...
+    ```
+
+    Steps are the top-level structural unit. Think of them as chapters or scenes.
+  </Step>
+
+  <Step title="Parse step contents">
+    Within each step, separates:
+    - **Paragraphs** → Narration blocks
+    - **Code fences** → Visualization blocks
+
+    Narration and visualizations can be interleaved freely.
+  </Step>
+
+  <Step title="Extract triggers">
+    Scans narration text for inline triggers using `{{...}}` syntax.
+
+    ```markdown
+    {{show: hash-fn}} Every hash map starts with a function.
+    ```
+
+    Triggers are stored with their word positions for timing during playback.
+  </Step>
+
+  <Step title="Parse visualization blocks">
+    Each code fence is parsed based on its language tag:
+
+    - `code` → Code visualization
+    - `data` → Data structure visualization
+    - `diagram` → Graph diagram
+    - `chart` → Chart/graph
+    - `math` → LaTeX math
+    - `preview` → HTML/React preview
+
+    Metadata is extracted from the `meta` string:
+
+    ````markdown
+    ```code name=example lang=javascript focus=2-3
+    function greet(name) {
+      console.log(`Hello, ${name}`);
+    }
+    ```
+    ````
+  </Step>
+
+  <Step title="Build scene sequence">
+    Replays all triggers in order to compute the sequence of scene states.
+
+    Each scene represents what's visible on stage at a specific moment.
+  </Step>
+
+  <Step title="Collect diagnostics">
+    If parsing errors occur (e.g., malformed triggers, missing block names), diagnostics are collected and returned.
+
+    Diagnostics include:
+    - Error message
+    - Location (step index, line number)
+    - Severity (error, warning)
+  </Step>
+</Steps>
+
+## Key Parser Files
+
+### `parse-lesson.ts`
+
+**Purpose**: Main orchestrator for lesson parsing.
+
+**Entry point**:
+
+```typescript
+export function parseLesson(markdown: string): ParsedLesson
+```
+
+**Flow**:
+
+1. Parse markdown to AST
+2. Extract frontmatter (title)
+3. Split into steps at H1 headings
+4. For each step, call `buildStep()`
+5. Return `ParsedLesson` with steps and diagnostics
+
+**Key function**: `buildStep()`
+
+Builds a single step from MDAST nodes:
+
+```typescript
+function buildStep(
+  title: string,
+  nodes: MdastNode[],
+  stepIndex: number
+): { step: LessonStep; diagnostics: LessonDiagnostic[] }
+```
+
+Returns a `LessonStep` with:
+- `id` (e.g., `"step-0"`)
+- `title`
+- `narration` (array of `NarrationBlock`)
+- `visualizations` (map of block name → block data)
+- `scenes` (array of `SceneState`)
+
+### `parse-data.ts`
+
+**Purpose**: Parses data structure visualizations.
+
+**Supported types**:
+
+- **Array**: `[1, 2, 3]`
+- **Linked list**: `1 -> 2 -> 3`
+- **Tree**: Nested JSON-like syntax
+- **Graph**: Node and edge definitions
+- **Sequential animations**: `seq { ... }` DSL
+
+**Example**:
+
+````markdown
+```data name=array-example
+[10, 20, 30, 40]
+```
+````
+
+Parsed to:
+
+```typescript
+{
+  kind: 'data',
+  name: 'array-example',
+  dataType: 'array',
+  values: [10, 20, 30, 40],
+  // ...
+}
+```
+
+**Sequential animations**:
+
+````markdown
+```data name=stack-demo
+seq {
+  []
+  push(5) -> [5]
+  push(10) -> [5, 10]
+  pop() -> [5]
+}
+```
+````
+
+Each line becomes a scene frame.
+
+**Parser logic**:
+
+1. Detect if content starts with `seq {`
+2. If yes, parse as sequential DSL (see `parse-seq.ts`)
+3. Otherwise, parse as static data structure
+4. Return `DataState` object
+
+### `parse-seq.ts`
+
+**Purpose**: Parses the sequential animation DSL for data structures.
+
+**Syntax**:
+
+```
+seq {
+  <initial state>
+  <operation> -> <result state>
+  <operation> -> <result state>
+  ...
+}
+```
+
+**Operations**:
+
+- `push(value)` - Add to end
+- `pop()` - Remove from end
+- `insert(index, value)` - Insert at index
+- `remove(index)` - Remove at index
+- `set(index, value)` - Update at index
+
+**Example**:
+
+```
+seq {
+  [1, 2, 3]
+  insert(0, 5) -> [5, 1, 2, 3]
+  remove(2) -> [5, 1, 3]
+}
+```
+
+**Output**:
+
+Array of `DataState` objects (one per line).
+
+**Parser implementation**:
+
+1. Split content by newlines
+2. For each line:
+   - If it's the first line, parse as initial state
+   - Otherwise, parse operation and result state
+3. Build data API for each state (pointers, highlights, etc.)
+4. Return sequence of states
+
+### `parse-diagram.ts`
+
+**Purpose**: Parses node-edge diagrams.
+
+**Syntax**:
+
+```
+Node1 -> Node2
+Node2 -> Node3
+Node1 -> Node3
+```
+
+Arrows (`->`) define directed edges. Nodes are auto-detected.
+
+**Metadata**:
+
+````markdown
+```diagram name=arch layout=hierarchical
+Client -> Server
+Server -> Database
+```
+````
+
+**Parsed to**:
+
+```typescript
+{
+  kind: 'diagram',
+  name: 'arch',
+  layout: 'hierarchical',
+  nodes: ['Client', 'Server', 'Database'],
+  edges: [
+    { from: 'Client', to: 'Server' },
+    { from: 'Server', to: 'Database' },
+  ],
+}
+```
+
+**Layout algorithms**:
+
+- `hierarchical` (default)
+- `force-directed`
+- `tree`
+
+Layout is computed by ELK.js on the frontend.
+
+### `parse-chart.ts`
+
+**Purpose**: Parses chart/graph visualizations.
+
+**Syntax**:
+
+CSV-like format:
+
+```
+x, y
+0, 10
+1, 20
+2, 15
+```
+
+**Metadata**:
+
+````markdown
+```chart name=growth type=line
+x, y
+0, 10
+1, 20
+2, 15
+```
+````
+
+**Chart types**:
+
+- `line`
+- `bar`
+- `scatter`
+
+**Parsed to**:
+
+```typescript
+{
+  kind: 'chart',
+  name: 'growth',
+  chartType: 'line',
+  data: [
+    { x: 0, y: 10 },
+    { x: 1, y: 20 },
+    { x: 2, y: 15 },
+  ],
+}
+```
+
+### `parse-math.ts`
+
+**Purpose**: Parses LaTeX math expressions.
+
+**Syntax**:
+
+````markdown
+```math name=equation
+f(x) = x^2 + 2x + 1
+```
+````
+
+**Parsed to**:
+
+```typescript
+{
+  kind: 'math',
+  name: 'equation',
+  latex: 'f(x) = x^2 + 2x + 1',
+}
+```
+
+Rendered with KaTeX on the frontend.
+
+### `parse-preview.ts`
+
+**Purpose**: Parses HTML/React preview blocks.
+
+**Syntax**:
+
+````markdown
+```preview name=button
+<button>Click me</button>
+```
+````
+
+**Parsed to**:
+
+```typescript
+{
+  kind: 'preview',
+  name: 'button',
+  template: 'html',  // or 'react'
+  content: '<button>Click me</button>',
+}
+```
+
+For React previews, the backend compiles JSX to JavaScript.
+
+### `parse-regions.ts`
+
+**Purpose**: Parses region definitions for sub-element addressing.
+
+**Syntax**:
+
+Regions are defined in the `meta` string:
+
+````markdown
+```code name=example lang=javascript regions=signature:1-2,body:3-5
+function greet(name) {
+  console.log(`Hello, ${name}`);
+}
+```
+````
+
+**Parsed to**:
+
+```typescript
+{
+  regions: [
+    { name: 'signature', target: '1-2' },
+    { name: 'body', target: '3-5' },
+  ],
+}
+```
+
+Regions can be referenced in triggers:
+
+```markdown
+{{focus: signature}} This is the function signature.
+```
+
+### `build-scenes.ts`
+
+**Purpose**: Computes the sequence of scene states by replaying triggers.
+
+**Algorithm**:
+
+1. Start with empty scene (nothing visible)
+2. For each trigger in order:
+   - Apply trigger verb (show, hide, transform, etc.)
+   - Compute new scene state
+   - Store in timeline
+3. Return array of `SceneState` objects
+
+**Example**:
+
+Given triggers:
+
+```
+{{show: code-a}}
+{{show: code-b}}
+{{hide: code-a}}
+```
+
+Scene sequence:
+
+```typescript
+[
+  { visible: [] },
+  { visible: ['code-a'] },
+  { visible: ['code-a', 'code-b'] },
+  { visible: ['code-b'] },
+]
+```
+
+**Scene state structure**:
+
+```typescript
+type SceneState = {
+  readonly visible: readonly string[];  // Block names
+  readonly focused: string | null;  // Focused block
+  readonly split: boolean;  // Split-screen mode
+  readonly zoom: number;  // Zoom level
+  readonly enterEffects: readonly SlotEnterEffect[];  // Animations
+};
+```
+
+## Trigger Parsing
+
+Triggers are extracted from narration text using regular expressions.
+
+**Syntax**:
+
+```
+{{verb: arguments}}
+```
+
+**Example**:
+
+```markdown
+{{show: code-block slide 0.5s ease-out}}
+```
+
+**Parsed to**:
+
+```typescript
+{
+  verb: 'show',
+  target: 'code-block',
+  animation: {
+    kind: 'custom',
+    effect: 'slide',
+    durationS: 0.5,
+    easing: 'ease-out',
+  },
+}
+```
+
+**Trigger verbs**:
+
+- `show` / `show-group` - Reveal blocks
+- `hide` / `hide-group` - Remove blocks
+- `transform` - Morph one block into another
+- `clear` - Remove all blocks
+- `split` / `unsplit` - Toggle split-screen mode
+- `focus` - Highlight a block or region
+- `pulse` - Pulse animation
+- `trace` - Draw a path
+- `annotate` - Add a label
+- `zoom` - Change zoom level
+
+**Advance triggers**:
+
+Bare text in braces:
+
+```markdown
+{{This text is spoken}} and advances the scene.
+```
+
+These contribute to narration and trigger a scene advance.
+
+## Animation Parsing
+
+**File**: `parse-animation.ts`
+
+Parses animation tokens from trigger arguments:
+
+```
+slide 0.5s ease-out
+```
+
+Parsed to:
+
+```typescript
+{
+  effect: 'slide',
+  durationS: 0.5,
+  easing: 'ease-out',
+}
+```
+
+**Effects**:
+
+- `fade`
+- `slide`
+- `slide-up`
+- `grow`
+- `typewriter`
+- `none`
+
+**Easing functions**:
+
+- `ease-out`
+- `ease-in-out`
+- `spring`
+- `linear`
+- `reveal`
+- `emphasis`
+- `handoff`
+
+## Error Handling and Diagnostics
+
+When parsing errors occur, diagnostics are collected:
+
+```typescript
+type LessonDiagnostic = {
+  readonly message: string;
+  readonly location: DiagnosticLocation;
+  readonly severity: 'error' | 'warning';
+};
+
+type DiagnosticLocation = {
+  readonly stepIndex: number;
+  readonly line?: number;
+  readonly column?: number;
+};
+```
+
+**Example diagnostic**:
+
+```typescript
+{
+  message: "Block 'nonexistent' referenced in trigger but not defined",
+  location: { stepIndex: 0, line: 12 },
+  severity: 'error',
+}
+```
+
+Diagnostics are displayed in the UI (not yet implemented).
+
+## Type System
+
+**Location**: `src/types/lesson.ts`
+
+All IR types are defined here:
+
+- `ParsedLesson`
+- `LessonStep`
+- `NarrationBlock`
+- `VisualizationState` (union of all visualization types)
+- `CodeState`
+- `DataState`
+- `DiagramState`
+- `ChartState`
+- `MathState`
+- `PreviewState`
+- `Trigger` (union of all trigger verbs)
+- `SceneState`
+- `AnimationOverride`
+- `SlotEnterEffect`
+
+**Philosophy**:
+
+- All fields are `readonly` (immutable)
+- No optional fields in the domain model (use explicit defaults or tagged unions)
+- Use discriminated unions for variant types (e.g., `kind: 'code' | 'data' | ...`)
+
+## Testing the Parser
+
+Currently no automated tests. Manual testing:
+
+1. Create a test lesson in `data/lessons/`
+2. Open in dev app
+3. Verify parsing in DevTools console:
+
+```typescript
+import { parseLesson } from '@/parser/parse-lesson';
+
+const markdown = `
+---
+title: Test Lesson
+---
+
+# Step 1
+
+{{show: code-a}} Here is some code.
+
+\`\`\`code name=code-a lang=javascript
+const x = 42;
+\`\`\`
+`;
+
+const lesson = parseLesson(markdown);
+console.log(lesson);
+```
+
+## Future Enhancements
+
+- **Error recovery**: Continue parsing after errors
+- **Syntax highlighting**: Highlight markdown syntax errors in authoring UI
+- **Type validation**: Validate trigger arguments (e.g., block names exist)
+- **Auto-completion**: Suggest block names in triggers
+- **LSP for authoring**: Language server for course authoring
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Presentation Engine" icon="play" href="/development/presentation-engine">
+    Learn how parsed lessons are played back
+  </Card>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Explore the React frontend
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Dive into the Rust backend
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    High-level system overview
+  </Card>
+</CardGroup>

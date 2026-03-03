@@ -1,0 +1,46 @@
+---
+title: Lab Commands
+description: Tauri commands for lab provisioning and state tracking
+---
+
+Commands for managing lab workspace lifecycle.
+
+## lab_is_provisioned
+
+Checks if a lab workspace has been provisioned.
+
+<ParamField path="workspace_path" type="string" required>
+  Absolute path to workspace directory
+</ParamField>
+
+<ResponseField name="isProvisioned" type="boolean" required>
+  True if workspace has been provisioned at least once
+</ResponseField>
+
+```typescript
+const provisioned = await invoke<boolean>('lab_is_provisioned', {
+  workspacePath: '/path/to/workspace'
+});
+
+if (!provisioned) {
+  // Run scaffold copy and setup commands
+}
+```
+
+## lab_mark_provisioned
+
+Marks a workspace as provisioned.
+
+<ParamField path="workspace_path" type="string" required>
+  Absolute path to workspace directory
+</ParamField>
+
+```typescript
+await invoke('lab_mark_provisioned', {
+  workspacePath: '/path/to/workspace'
+});
+```
+
+<Note>
+This command is idempotent. Calling it multiple times updates the `provisioned_at` timestamp.
+</Note>

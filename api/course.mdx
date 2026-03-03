@@ -1,0 +1,66 @@
+---
+title: Course
+description: TypeScript types for course data structures
+---
+
+The `Course` type represents a parsed course containing a sequence of lessons and labs.
+
+## Course
+
+Top-level course structure.
+
+<ParamField path="title" type="string" required>
+  Course title
+</ParamField>
+
+<ParamField path="steps" type="readonly CourseStep[]" required>
+  Ordered sequence of lessons and labs
+</ParamField>
+
+## CourseStep
+
+Discriminated union representing a single step in the course.
+
+<Expandable title="CourseStep (lesson variant)">
+  <ParamField path="kind" type="'lesson'" required>
+    Step type discriminator
+  </ParamField>
+
+  <ParamField path="title" type="string" required>
+    Step title displayed in navigation
+  </ParamField>
+
+  <ParamField path="lesson" type="ParsedLesson" required>
+    Parsed lesson data. See [Lesson](/api/lesson) for structure.
+  </ParamField>
+</Expandable>
+
+<Expandable title="CourseStep (lab variant)">
+  <ParamField path="kind" type="'lab'" required>
+    Step type discriminator
+  </ParamField>
+
+  <ParamField path="title" type="string" required>
+    Step title displayed in navigation
+  </ParamField>
+
+  <ParamField path="lab" type="ParsedLab" required>
+    Parsed lab manifest. See [Lab](/api/lab) for structure.
+  </ParamField>
+</Expandable>
+
+## Usage Example
+
+```typescript
+import type { Course } from "@/types/course";
+
+function renderCourse(course: Course) {
+  return course.steps.map((step, i) => {
+    if (step.kind === "lesson") {
+      return <LessonView key={i} lesson={step.lesson} title={step.title} />;
+    } else {
+      return <LabView key={i} lab={step.lab} title={step.title} />;
+    }
+  });
+}
+```

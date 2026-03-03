@@ -1,80 +1,218 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Go from installation to watching your first lesson in 5 minutes.
 ---
 
-## Get started in three steps
+This guide walks you through opening Handhold, selecting a course, watching a lesson, and completing your first lab.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Make sure you've [installed Handhold](/installation) before continuing.
+
+## Launch Handhold
+
+<CodeGroup>
+
+```bash macOS
+open /Applications/Handhold.app
+```
+
+```bash Linux
+handhold
+```
+
+```powershell Windows
+# Launch from Start Menu or desktop shortcut
+```
+
+</CodeGroup>
+
+The app opens to the course library.
+
+## Browse the course library
+
+<Steps>
+  <Step title="View available courses">
+    The library shows all installed courses. Each card displays the course title, description, and progress.
+  </Step>
+  
+  <Step title="Select a course">
+    Click a course card to open it. If this is your first time, start with an introductory course like "Hash Maps" or "React State Management".
+  </Step>
+</Steps>
+
+<Info>
+  Handhold ships with a few sample courses. You can download more from the community or create your own using the authoring guide.
+</Info>
+
+## Watch your first lesson
+
+After selecting a course, you'll see a list of lessons and labs.
+
+<Steps>
+  <Step title="Click the first lesson">
+    Lessons are marked with a book icon. Labs are marked with a code icon.
+  </Step>
+  
+  <Step title="Start playback">
+    The lesson opens with a play button. Click it or press Space to start.
+    
+    The narration begins, and visualizations animate in sync with the spoken text.
+  </Step>
+  
+  <Step title="Control playback">
+    - **Space** — Play / Pause
+    - **Left/Right arrows** — Jump between narration blocks
+    - **Escape** — Return to course view
+  </Step>
+  
+  <Step title="Watch the visualization">
+    As the narration progresses, code blocks appear on screen. Lines highlight in sync with what's being explained. Data structures focus on specific nodes. Diagrams trace paths through systems.
+  </Step>
+</Steps>
+
+<Tip>
+  Lessons are designed to be watched, not read. Let the narration guide you. The visuals change automatically as the speaker describes them.
+</Tip>
+
+## Complete your first lab
+
+After finishing a lesson, the next item in the course is usually a lab.
+
+<Steps>
+  <Step title="Click the lab">
+    Labs are interactive coding exercises that reinforce what you learned in the lesson.
+  </Step>
+  
+  <Step title="Read the instructions">
+    The lab opens with a description of what you need to build. Instructions appear in the sidebar.
+  </Step>
+  
+  <Step title="Write code in the editor">
+    The main panel is a Monaco editor (the same engine as VS Code). You can use keyboard shortcuts you're familiar with.
+    
+    Vim keybindings are available via the settings menu if you prefer.
+  </Step>
+  
+  <Step title="Run tests">
+    Click the "Run Tests" button or press Cmd/Ctrl+Enter.
+    
+    Tests run in a real environment. If the lab requires services like Postgres or Redis, Handhold spins them up in containers automatically.
+  </Step>
+  
+  <Step title="Fix failures and iterate">
+    Test output appears in the terminal panel below the editor. Red means failures, green means passing.
+    
+    Edit your code and re-run tests until everything passes.
+  </Step>
+  
+  <Step title="Mark the lab complete">
+    Once all tests pass, the lab is automatically marked complete. You can move on to the next lesson.
+  </Step>
+</Steps>
+
+## Understanding lesson structure
+
+Lessons in Handhold follow a consistent pattern:
+
+<Steps>
+  <Step title="Problem introduction">
+    The lesson starts by establishing a problem or question. Why does this concept matter?
+  </Step>
+  
+  <Step title="Step-by-step explanation">
+    Each step builds on the previous one. Narration is synchronized with visual changes — when the speaker mentions a variable, that line highlights.
+  </Step>
+  
+  <Step title="Concrete examples">
+    Instead of abstract definitions, lessons walk through real examples. You see code execute, data flow through structures, and systems communicate.
+  </Step>
+</Steps>
+
+## Lab structure
+
+Labs are small, focused exercises:
+
+- **5-20 minutes** — Short enough to complete in one session
+- **Real code** — You write actual TypeScript/JavaScript/Python/etc, not pseudocode
+- **Real tests** — Tests verify your implementation against edge cases
+- **Real services** — If the lab needs a database, Handhold spins up Postgres in a container
+
+<Warning>
+  Labs that require container services need Docker or Podman installed. See the [installation guide](/installation) for setup instructions.
+</Warning>
+
+## Keyboard shortcuts
+
+### During lessons
+
+| Key | Action |
+|-----|--------|
+| Space | Play / Pause |
+| Left Arrow | Previous narration block |
+| Right Arrow | Next narration block |
+| Escape | Return to course view |
+
+### In the lab editor
+
+| Key | Action |
+|-----|--------|
+| Cmd/Ctrl + Enter | Run tests |
+| Cmd/Ctrl + S | Save (auto-saves on test run) |
+| Cmd/Ctrl + / | Toggle comment |
+
+Full Monaco editor shortcuts apply (same as VS Code).
+
+## Course progression
+
+Courses alternate between lessons and labs:
+
+```
+Lesson 1: Hash functions → Lab 1: Implement a hash function
+Lesson 2: Collision handling → Lab 2: Add collision resolution
+Lesson 3: Resizing hash maps → Lab 3: Implement dynamic resizing
+```
+
+Each lab builds on previous ones when the content supports it. The final lab often integrates everything you've learned.
+
+## Troubleshooting
 
 <AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+  <Accordion title="Lesson won't play">
+    Check the console for errors (Cmd/Ctrl+Shift+I opens DevTools). If TTS fails to initialize, the lesson will show an error message.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
+    Make sure the app has audio permissions on macOS (System Settings → Privacy & Security → Microphone).
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+  
+  <Accordion title="Lab tests fail to run">
+    If the lab requires containers and tests fail immediately, verify that Docker or Podman is running:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
+    ```bash
+    podman --version
+    # or
+    docker --version
+    ```
+    
+    Check that the container runtime is on your PATH. On macOS with Docker Desktop, make sure the app is launched.
   </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  
+  <Accordion title="Code editor doesn't respond">
+    The Monaco editor can freeze if the window loses focus during initialization. Close the lab and reopen it.
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
+    If the issue persists, restart Handhold.
   </Accordion>
 </AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you've completed your first lesson and lab:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Explore more courses" icon="books">
+    Browse the course library and try lessons on different topics
+  </Card>
+  
+  <Card title="Create your own course" icon="pen">
+    Learn how to write lessons with the authoring DSL and build custom courses
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

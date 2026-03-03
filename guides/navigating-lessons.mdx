@@ -1,0 +1,114 @@
+---
+title: Navigating Lessons
+description: Master lesson playback controls and navigation in Handhold
+---
+
+Lessons in Handhold are narrated, animated presentations that combine code, visualizations, diagrams, and math to explain programming concepts. This guide covers how to control playback and navigate through lessons effectively.
+
+## Lesson Interface
+
+The lesson view consists of:
+
+- **Sidebar**: Shows all steps in the lesson with progress indicators
+- **Stage**: The main visualization area where animations appear
+- **Narration text**: Displays the current narration at the bottom
+- **Controls**: Playback controls and progress bar
+
+## Playback Controls
+
+Use the control bar at the bottom of the lesson to manage playback:
+
+| Control | Function |
+|---------|----------|
+| Previous | Jump to the previous step |
+| Play/Pause | Start or pause narration and animation |
+| Next | Advance to the next step |
+| Progress bar | Scrub to any point in the current step |
+| Speed selector | Adjust playback speed (0.75x - 2x) |
+
+<Info>The controls automatically disable when you reach the first or last step</Info>
+
+## Keyboard Navigation
+
+Lessons support keyboard controls for efficient navigation:
+
+| Key | Action |
+|-----|--------|
+| `Space` | Play/Pause, or advance to next step if current step is complete |
+| `→` (Right Arrow) | Next step |
+| `←` (Left Arrow) | Previous step |
+
+<Tip>Keyboard shortcuts work when the lesson view is focused. Click the stage area to ensure focus.</Tip>
+
+## Scrubbing Through Content
+
+The progress bar shows your position in the current step's narration:
+
+<Steps>
+  <Step title="Click the progress bar">
+    Click anywhere on the bar to jump to that position
+  </Step>
+  <Step title="Drag the indicator">
+    Click and drag the progress indicator for fine-grained control
+  </Step>
+  <Step title="Audio and animation sync">
+    Narration and animations automatically sync to the new position
+  </Step>
+</Steps>
+
+## Viewing Step Content
+
+As narration plays, the stage updates to show:
+
+- **Code**: Syntax-highlighted code with focus regions and annotations
+- **Data structures**: Visual representations of arrays, trees, graphs, and more
+- **Diagrams**: System architecture and flow diagrams
+- **Math**: LaTeX-rendered equations and formulas
+- **Charts**: Bar, line, and scatter plots
+
+Animations are triggered by specific words in the narration, creating a synchronized visual experience.
+
+## Step Progress
+
+Handhold tracks your progress through lessons:
+
+- **Completed steps**: Show a filled green indicator in the sidebar
+- **Current step**: Highlighted with a pulsing indicator
+- **Incomplete steps**: Show an outline indicator
+
+<Check>Progress is saved automatically—you can close and resume lessons anytime</Check>
+
+## Jumping Between Steps
+
+To navigate directly to a specific step:
+
+<Steps>
+  <Step title="Locate the step in the sidebar">
+    The sidebar shows all steps with their titles
+  </Step>
+  <Step title="Click the step">
+    Click any step to jump directly to it
+  </Step>
+  <Step title="Playback resets">
+    The new step starts from the beginning
+  </Step>
+</Steps>
+
+## Smart Play Behavior
+
+When you press `Space` on a completed step:
+
+1. Handhold advances to the next step
+2. If the next step exists, playback begins automatically
+3. If you're on the last step, the course completion callback fires (if configured)
+
+<Info>This allows you to quickly move through completed content by repeatedly pressing Space</Info>
+
+## Lesson Completion
+
+A lesson step is marked complete when:
+
+- You've played the narration to the end, or
+- You've manually advanced past the step
+
+Completed lessons appear with a filled indicator in the sidebar for easy reference.

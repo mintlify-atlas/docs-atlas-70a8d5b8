@@ -1,0 +1,353 @@
+---
+title: Chart Visualizations
+description: Data visualizations including bar, line, area, pie, radar, and radial charts
+---
+
+Chart blocks render data visualizations with labeled axes, multiple series, and annotations.
+
+## Basic Syntax
+
+Use a code fence with the `chart` kind and type parameter:
+
+````markdown
+```chart:quarterly type=bar
+Q1: 100
+Q2: 150
+Q3: 120
+Q4: 200
+```
+````
+
+**Format**: `` ```chart:name type=chart-type ``
+
+- `name`: Unique identifier for the chart
+- `type`: Chart type (default: `bar`)
+
+## Chart Types
+
+Handhold supports 7 chart types:
+
+### Bar Chart (`type=bar`)
+
+Vertical bars for categorical comparisons.
+
+````markdown
+```chart:revenue type=bar
+Q1: 100
+Q2: 150
+Q3: 120
+Q4: 200
+```
+````
+
+Best for:
+- Comparing categories
+- Showing discrete values
+- Quarterly/monthly data
+
+### Line Chart (`type=line`)
+
+Connected points showing trends over time.
+
+````markdown
+```chart:growth type=line
+Jan: 100
+Feb: 120
+Mar: 180
+Apr: 240
+```
+````
+
+Best for:
+- Time series data
+- Showing trends
+- Continuous change
+
+### Area Chart (`type=area`)
+
+Filled area under a line, emphasizing magnitude.
+
+````markdown
+```chart:traffic type=area
+Mon: 1200
+Tue: 1500
+Wed: 1800
+Thu: 1600
+Fri: 2000
+```
+````
+
+Best for:
+- Cumulative values
+- Emphasizing volume
+- Stacking multiple series
+
+### Scatter Plot (`type=scatter`)
+
+Points showing correlation between variables.
+
+````markdown
+```chart:correlation type=scatter
+A: 10
+B: 25
+C: 15
+D: 30
+E: 22
+```
+````
+
+Best for:
+- Correlation analysis
+- Distribution patterns
+- Outlier detection
+
+### Pie Chart (`type=pie`)
+
+Circular chart showing proportions (uses first series only).
+
+````markdown
+```chart:market-share type=pie
+Product A: 35
+Product B: 25
+Product C: 20
+Product D: 20
+```
+````
+
+Best for:
+- Part-to-whole relationships
+- Percentages
+- Market share
+
+### Radar Chart (`type=radar`)
+
+Multi-axis chart showing multiple metrics.
+
+````markdown
+```chart:skills type=radar
+Speed: 80
+Power: 60
+Accuracy: 90
+Defense: 70
+Agility: 85
+```
+````
+
+Best for:
+- Comparing multiple dimensions
+- Performance metrics
+- Balanced scorecards
+
+### Radial Bar Chart (`type=radial`)
+
+Circular bars extending from center.
+
+````markdown
+```chart:progress type=radial
+Task A: 80
+Task B: 60
+Task C: 90
+Task D: 45
+```
+````
+
+Best for:
+- Progress indicators
+- Completion percentages
+- Cyclical data
+
+## Data Formats
+
+### Simple Format (Single Series)
+
+Key-value pairs, one per line:
+
+````markdown
+```chart:sales type=bar
+January: 100
+February: 150
+March: 120
+April: 200
+```
+````
+
+- Creates one series named "default"
+- Labels are the keys
+- Values are numbers (can be negative or decimal)
+
+### Table Format (Multiple Series)
+
+Markdown table with first column as labels:
+
+````markdown
+```chart:comparison type=line
+| Month | 2024 | 2025 |
+|-------|------|------|
+| Jan   | 100  | 120  |
+| Feb   | 150  | 180  |
+| Mar   | 120  | 160  |
+| Apr   | 200  | 240  |
+```
+````
+
+- First column = x-axis labels
+- Remaining columns = series (one per column)
+- Header row defines series names
+- Separator row (`|---|---|`) is optional
+
+## Annotations
+
+Add vertical reference lines with labels:
+
+````markdown
+```chart:timeline type=line
+Jan: 100
+Feb: 150
+Mar: 180
+Apr: 240
+May: 200
+
+annotate: Mar "Feature Launch"
+annotate: May "Bug Fix"
+```
+````
+
+**Syntax**: `annotate: label "text"`
+
+- `label`: Matches an x-axis label
+- `text`: Annotation text (quoted)
+- Renders as vertical dashed line with label
+
+## Shaded Regions
+
+Highlight ranges on the x-axis:
+
+````markdown
+```chart:performance type=area
+Week1: 100
+Week2: 120
+Week3: 150
+Week4: 180
+Week5: 160
+Week6: 200
+
+shade: Week2..Week4 #e0f2fe
+shade: Week5..Week6 #fee2e2
+```
+````
+
+**Syntax**: `shade: from..to color`
+
+- `from` and `to`: x-axis labels
+- `color`: Hex color code (e.g., `#e0f2fe`)
+- Renders as translucent background fill
+
+## Regions
+
+Regions target x-axis labels for focus:
+
+````markdown
+```chart:growth type=bar
+Q1: 100
+Q2: 150
+Q3: 120
+Q4: 200
+---
+best: Q4
+worst: Q3
+middle: Q1, Q2
+```
+````
+
+Use with `{{focus: region}}` to highlight specific data points.
+
+## Real Example
+
+````markdown
+# API Response Time Analysis
+
+{{show: perf}} Here's our API response time over the past week. {{focus: spike}} Notice the spike on Wednesday. {{annotate: spike "Traffic surge"}} This was caused by a traffic surge. {{shade: recovery}} We optimized the cache, and response times improved.
+
+```chart:perf type=line
+| Day | Response Time (ms) |
+|-----|--------------------|
+| Mon | 120                |
+| Tue | 115                |
+| Wed | 380                |
+| Thu | 250                |
+| Fri | 140                |
+| Sat | 125                |
+| Sun | 110                |
+
+annotate: Wed "Traffic surge"
+shade: Thu..Sun #dcfce7
+---
+spike: Wed
+recovery: Thu, Fri, Sat, Sun
+```
+````
+
+## Multi-Series Example
+
+````markdown
+```chart:comparison type=line
+| Month | 2024 | 2025 | Target |
+|-------|------|------|--------|
+| Jan   | 100  | 120  | 150    |
+| Feb   | 150  | 180  | 200    |
+| Mar   | 120  | 160  | 175    |
+| Apr   | 200  | 240  | 250    |
+
+annotate: Feb "Campaign Launch"
+shade: Mar..Apr #fef3c7
+---
+launch: Feb
+growth: Mar, Apr
+```
+````
+
+## Best Practices
+
+### Chart Type Selection
+
+**Use bar charts for:**
+- Categorical comparisons
+- Discrete time periods (quarters, years)
+- Small number of categories (< 10)
+
+**Use line charts for:**
+- Continuous time series
+- Showing trends
+- Multiple series comparisons
+
+**Use area charts for:**
+- Cumulative totals
+- Stacked data
+- Emphasizing magnitude
+
+**Use pie charts for:**
+- Part-to-whole (< 6 categories)
+- Percentages adding to 100%
+- Simple proportions
+
+### Data Quality
+
+- Keep labels short (1-3 words)
+- Use consistent time intervals
+- Limit series count (3-4 max for readability)
+- Round values to significant digits
+
+### Annotations
+
+- Use sparingly (1-2 per chart)
+- Explain anomalies, not obvious data
+- Keep text brief (2-5 words)
+
+### Colors
+
+Shaded regions support any hex color:
+
+- Success/positive: `#dcfce7` (light green)
+- Warning/caution: `#fef3c7` (light yellow)
+- Error/negative: `#fee2e2` (light red)
+- Info/neutral: `#e0f2fe` (light blue)

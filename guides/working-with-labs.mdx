@@ -1,0 +1,230 @@
+---
+title: Working with Labs
+description: Learn to use Handhold's interactive coding environment
+---
+
+Labs are interactive coding environments where you apply programming concepts. Each lab includes a full-featured code editor, terminal access, file explorer, and automated testing.
+
+## Lab Interface
+
+The lab environment consists of several panels:
+
+### Activity Bar
+
+The leftmost vertical bar provides access to:
+
+| Icon | Panel | Purpose |
+|------|-------|----------|
+| Files | Explorer | Browse and open project files |
+| Book | Instructions | View lab objectives and guidance |
+| Search | Search | Find text across all files |
+| Container | Services | Manage Docker/Podman services |
+| Flask | Testing | Run and view test results |
+| Lightbulb | Solution | View the solution (if available) |
+| Settings | Settings | Configure editor preferences |
+
+### Editor Area
+
+The central panel shows:
+
+- **Editor tabs**: Open files with dirty indicators (•)
+- **Code editor**: Monaco-based editor with syntax highlighting, IntelliSense, and git diff markers
+- **Split view**: Open two files side-by-side
+
+### Bottom Panel
+
+Collapsible panel with tabs for:
+
+- **Terminal**: Integrated terminal sessions
+- **Diagnostics**: TypeScript/LSP errors and warnings
+
+### Status Bar
+
+Bottom bar displaying:
+
+- Current file language and encoding
+- Cursor position (line, column)
+- Tab size
+- Vim mode status (if enabled)
+- Error and warning counts
+- Lab provisioning status
+
+## Opening Files
+
+<Steps>
+  <Step title="Open the Explorer panel">
+    Click the Files icon in the activity bar
+  </Step>
+  <Step title="Navigate the file tree">
+    Click folders to expand/collapse, click files to open
+  </Step>
+  <Step title="Alternative: Quick Open">
+    Press `Cmd+P` (macOS) or `Ctrl+P` (Windows/Linux) for file search
+  </Step>
+</Steps>
+
+<Tip>Files specified in the lab manifest's `openFiles` array open automatically when the lab loads</Tip>
+
+## Editing Code
+
+The Monaco editor provides:
+
+- **Syntax highlighting**: Automatic language detection from file extension
+- **IntelliSense**: Code completion powered by TypeScript and LSP servers
+- **Multi-cursor editing**: `Cmd+D` / `Ctrl+D` to select next occurrence
+- **Git integration**: Gutter markers show added, modified, and deleted lines
+- **Vim mode**: Optional Vim keybindings (enable in Settings)
+
+### Saving Files
+
+<Steps>
+  <Step title="Manual save">
+    Press `Cmd+S` / `Ctrl+S` or run "Save File" from the command palette
+  </Step>
+  <Step title="Auto-save (optional)">
+    Enable auto-save in Settings to save on content change
+  </Step>
+  <Step title="Save confirmation">
+    Dirty files show a dot (•) in the tab. Closing a dirty file prompts for save.
+  </Step>
+</Steps>
+
+## Using the Terminal
+
+Terminals run inside the lab's containerized environment:
+
+<Steps>
+  <Step title="Focus the terminal">
+    Click the terminal area or press `Cmd+\`` / `Ctrl+\``
+  </Step>
+  <Step title="Create new terminals">
+    Press `Cmd+Shift+\`` / `Ctrl+Shift+\`` or click the "+" button
+  </Step>
+  <Step title="Switch between terminals">
+    Click terminal tabs to switch between sessions
+  </Step>
+</Steps>
+
+<Info>Terminals persist for the duration of the lab session. They are destroyed when you close the lab.</Info>
+
+## Running Tests
+
+<Steps>
+  <Step title="Open the Testing panel">
+    Click the Flask icon in the activity bar
+  </Step>
+  <Step title="Run tests">
+    Click the "Run" button or use the "Run Tests" command
+  </Step>
+  <Step title="View results">
+    Test results show passed/failed assertions with detailed output
+  </Step>
+</Steps>
+
+<Check>Labs are marked complete when all tests pass</Check>
+
+### Test Output
+
+Test results display:
+
+- **Assertion list**: Individual test cases with pass/fail status
+- **Raw output**: Expandable section showing full test runner output
+- **Duration**: Total test execution time
+- **Summary**: Count of passed vs. total assertions
+
+## Searching Files
+
+<Steps>
+  <Step title="Open the Search panel">
+    Click the Search icon in the activity bar
+  </Step>
+  <Step title="Enter search query">
+    Type text to find across all files (supports regex)
+  </Step>
+  <Step title="Navigate results">
+    Click results to jump to the file and line
+  </Step>
+</Steps>
+
+## Split Editor
+
+View two files simultaneously:
+
+<Steps>
+  <Step title="Open the first file">
+    Open any file in the editor
+  </Step>
+  <Step title="Split the editor">
+    Press `Cmd+\\` / `Ctrl+\\` or run "Split Editor Right"
+  </Step>
+  <Step title="Switch focus between panes">
+    `Cmd+1` / `Ctrl+1` for left pane, `Cmd+2` / `Ctrl+2` for right pane
+  </Step>
+</Steps>
+
+<Tip>Each pane maintains its own active file and can be scrolled independently</Tip>
+
+## Managing Services
+
+Labs can include Docker/Podman services (databases, Redis, etc.):
+
+<Steps>
+  <Step title="Open the Services panel">
+    Click the Container icon in the activity bar
+  </Step>
+  <Step title="View service status">
+    See health status, ports, and container state
+  </Step>
+  <Step title="Access services">
+    Services are accessible on their configured ports (usually localhost)
+  </Step>
+</Steps>
+
+<Warning>Services are automatically started when the lab provisions. Stopping services may cause tests to fail.</Warning>
+
+## Viewing Solutions
+
+If a solution is available:
+
+<Steps>
+  <Step title="Open Instructions or click the Lightbulb icon">
+    Solutions are accessible from the Instructions panel or Activity Bar
+  </Step>
+  <Step title="Click 'View Solution'">
+    Opens the Solution panel with complete implementation
+  </Step>
+  <Step title="Reference the solution code">
+    Use as a guide—solutions are read-only
+  </Step>
+</Steps>
+
+## Lab Lifecycle
+
+Labs go through several states:
+
+| State | Description |
+|-------|-------------|
+| Provisioning | Creating workspace, installing dependencies, starting services |
+| Ready | Lab is active and ready to use |
+| Failed | Provisioning error occurred (shows error message with retry option) |
+| Missing Runtime | Docker/Podman not detected (prompts for installation) |
+
+<Info>The status bar shows the current lifecycle state with a colored indicator</Info>
+
+## Command Palette
+
+Access all lab commands:
+
+- **File mode**: `Cmd+P` / `Ctrl+P` - Quick file search
+- **Command mode**: `Cmd+Shift+P` / `Ctrl+Shift+P` - Run commands
+
+Type `>` in file mode to switch to command mode.
+
+### Useful Commands
+
+- Toggle Sidebar
+- Toggle Word Wrap
+- Toggle Auto Save
+- Close All Tabs
+- Go to Line
+- Focus Explorer/Instructions/Search/Services/Testing

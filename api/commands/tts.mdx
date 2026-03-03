@@ -1,0 +1,127 @@
+---
+title: TTS Commands
+description: Tauri commands for text-to-speech synthesis
+---
+
+Commands for generating narration audio with word-level timing.
+
+## synthesize
+
+Synthesizes narration text to audio with word-level timing events.
+
+<ParamField path="text" type="string" required>
+  Plain text to synthesize
+</ParamField>
+
+<ParamField path="bundle_path" type="string | null" optional>
+  Path to TTS bundle directory for caching. If provided and a cache hit occurs, returns cached audio immediately.
+</ParamField>
+
+<ParamField path="on_event" type="Channel<TTSEvent>" required>
+  Event channel for streaming word boundaries and audio data
+</ParamField>
+
+<ResponseField name="result" type="void" required>
+  Emits events via channel:
+  - `WordBoundary`: Fired for each word
+  - `AudioReady`: Fired once when synthesis completes
+</ResponseField>
+
+### TTSEvent
+
+Discriminated union:
+
+<Expandable title="WordBoundary">
+  <ResponseField name="event" type="'wordBoundary'" required />
+  <ResponseField name="data.word" type="string" required>
+    Word text
+  </ResponseField>
+  <ResponseField name="data.wordIndex" type="number" required>
+    Zero-based word index
+  </ResponseField>
+  <ResponseField name="data.charOffset" type="number" required>
+    Character offset in original text
+  </ResponseField>
+  <ResponseField name="data.startMs" type="number" required>
+    Word start time (milliseconds)
+  </ResponseField>
+  <ResponseField name="data.endMs" type="number" required>
+    Word end time (milliseconds)
+  </ResponseField>
+</Expandable>
+
+<Expandable title="AudioReady">
+  <ResponseField name="event" type="'audioReady'" required />
+  <ResponseField name="data.audioBase64" type="string" required>
+    Base64-encoded WAV audio
+  </ResponseField>
+  <ResponseField name="data.durationMs" type="number" required>
+    Total audio duration (milliseconds)
+  </ResponseField>
+</Expandable>
+
+```typescript
+import { Channel } from '@tauri-apps/api/core';
+
+const channel = new Channel<TTSEvent>();
+channel.onmessage = (event) => {
+  if (event.event === 'wordBoundary') {
+    console.log(`Word: ${event.data.word} at ${event.data.startMs}ms`);
+  } else if (event.event === 'audioReady') {
+    const audio = new Audio(`data:audio/wav;base64,${event.data.audioBase64}`);
+    audio.play();
+  }
+};
+
+await invoke('synthesize', {
+  text: 'Hello, world!',
+  bundlePath: '/path/to/bundle',
+  onEvent: channel
+});
+```
+
+## export_audio
+
+Pre-generates and caches audio for multiple text blocks.
+
+<ParamField path="texts" type="string[]" required>
+  Array of text blocks to synthesize
+</ParamField>
+
+<ParamField path="bundle_dir" type="string" required>
+  Path to bundle directory for writing cache
+</ParamField>
+
+<ResponseField name="exported" type="number" required>
+  Number of newly generated audio files (cache misses)
+</ResponseField>
+
+```typescript
+const exported = await invoke<number>('export_audio', {
+  texts: ['Intro text', 'Section 1', 'Section 2'],
+  bundleDir: '/course/tts-bundle'
+});
+
+console.log(`Generated ${exported} new audio files`);
+```
+
+## ensure_tts_ready
+
+Ensures TTS models are downloaded and ready. Performs a warmup synthesis if models need initialization.
+
+<ResponseField name="status" type="string" required>
+  One of:
+  - `'ready'`: Models already present
+  - `'downloaded'`: Models downloaded and initialized
+</ResponseField>
+
+```typescript
+const status = await invoke<string>('ensure_tts_ready');
+if (status === 'downloaded') {
+  console.log('TTS models initialized');
+}
+```
+
+<Note>
+This command is called automatically by the app on startup. You typically don't need to invoke it manually.
+</Note>

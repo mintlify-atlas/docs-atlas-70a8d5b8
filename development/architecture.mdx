@@ -1,0 +1,300 @@
+---
+title: Architecture Overview
+description: Understanding Handhold's technical architecture and system design
+---
+
+Handhold is built as a Tauri 2 desktop application with a React 19 frontend and Rust backend. The architecture separates concerns into distinct layers for parsing, presentation, and runtime services.
+
+## High-Level Architecture
+
+The application follows a three-layer architecture:
+
+```
+┌─────────────────────────────────────────┐
+│         React Frontend (Vite)           │
+│  ┌─────────────┐    ┌────────────────┐ │
+│  │   Parser    │───▶│  Presentation  │ │
+│  │  (Markdown) │    │     Engine     │ │
+│  └─────────────┘    └────────────────┘ │
+│         │                    │          │
+│         ▼                    ▼          │
+│  ┌──────────────────────────────────┐  │
+│  │      Visualization Layer         │  │
+│  │  (Code, Data, Diagram, Preview)  │  │
+│  └──────────────────────────────────┘  │
+└─────────────────┬───────────────────────┘
+                  │ IPC
+┌─────────────────▼───────────────────────┐
+│         Rust Backend (Tauri)            │
+│  ┌──────┐ ┌─────┐ ┌─────┐ ┌──────────┐ │
+│  │ TTS  │ │ LSP │ │ PTY │ │Container │ │
+│  └──────┘ └─────┘ └─────┘ └──────────┘ │
+│  ┌──────┐ ┌──────────┐  ┌───────────┐ │
+│  │  DB  │ │   Git    │  │   File    │ │
+│  └──────┘ └──────────┘  └───────────┘ │
+└─────────────────────────────────────────┘
+```
+
+## Technology Stack
+
+### Frontend
+
+- **React 19**: UI framework with concurrent rendering
+- **TypeScript**: Type-safe application code
+- **Vite**: Fast build tool and dev server
+- **Zustand**: Lightweight state management
+- **TanStack Query**: Server state and caching
+- **Motion**: Animation library for transitions
+- **Shiki**: Syntax highlighting for code blocks
+- **Monaco Editor**: Full-featured code editor for labs
+- **Tailwind CSS**: Utility-first styling
+
+### Backend
+
+- **Tauri 2**: Desktop application framework
+- **Rust**: Systems programming language
+- **SQLite**: Local database for course progress
+- **portable-pty**: Terminal emulation
+- **reqwest**: HTTP client for course downloads
+- **notify**: File system watching
+- **Kokoro TTS**: Text-to-speech synthesis (external sidecar)
+
+## Project Structure
+
+```
+handhold/
+├── src/                      # React frontend
+│   ├── types/                # TypeScript type definitions
+│   ├── parser/               # Markdown to IR parser
+│   ├── presentation/         # Playback orchestration
+│   ├── code/                 # Code visualization
+│   ├── data/                 # Data structure visualization
+│   ├── diagram/              # Diagram rendering
+│   ├── preview/              # HTML/React preview
+│   ├── tts/                  # TTS integration
+│   ├── lab/                  # Interactive lab environment
+│   ├── browser/              # Course browser
+│   └── editor/               # Code editor components
+│
+├── src-tauri/                # Rust backend
+│   ├── src/
+│   │   ├── lib.rs            # App initialization, IPC handlers
+│   │   ├── tts/              # Kokoro TTS integration
+│   │   ├── container.rs      # Docker/Podman orchestration
+│   │   ├── pty.rs            # Terminal emulation
+│   │   ├── lsp.rs            # Language server bridge
+│   │   ├── db.rs             # SQLite operations
+│   │   ├── fs.rs             # File system operations
+│   │   ├── git.rs            # Git operations
+│   │   ├── course/           # Course management
+│   │   └── runner.rs         # Command execution
+│   └── Cargo.toml            # Rust dependencies
+│
+├── docs/                     # Authoring documentation
+├── scripts/                  # Build and setup scripts
+└── .claude/skills/           # AI-assisted authoring tools
+```
+
+## Core Systems
+
+### 1. Parser (Frontend)
+
+**Location**: `src/parser/`
+
+The parser transforms markdown source files into a structured intermediate representation (IR). It handles:
+
+- Frontmatter extraction (YAML)
+- Step segmentation (H1 headings)
+- Narration block parsing
+- Visualization block parsing (code, data, diagrams, charts, math, previews)
+- Trigger extraction and parsing
+- Region definition
+- Scene sequence building
+
+**Key files**:
+- `parse-lesson.ts` - Main orchestrator
+- `parse-data.ts` - Data structure parsing
+- `parse-diagram.ts` - Diagram parsing
+- `parse-seq.ts` - Sequential animation DSL
+- `build-scenes.ts` - Scene state computation
+
+### 2. Presentation Engine (Frontend)
+
+**Location**: `src/presentation/`
+
+The presentation engine orchestrates playback of parsed lessons:
+
+- TTS synthesis and audio playback
+- Word-level timing synchronization
+- Trigger execution at word boundaries
+- Scene state transitions
+- Animation scheduling
+- Playback controls (play, pause, seek, rate)
+
+**Key files**:
+- `store.ts` - Zustand store for presentation state
+- `use-playback.ts` - Playback orchestration hook
+- `event-scheduler.ts` - Trigger scheduling
+- `Presentation.tsx` - Main presentation component
+- `Stage.tsx` - Visualization rendering surface
+
+### 3. Visualization Primitives (Frontend)
+
+Handhold provides four core visualization types:
+
+#### Code (`src/code/`)
+- Syntax highlighting via Shiki
+- Line-level diffing and highlighting
+- Animated line transitions
+- Focus regions
+- Annotations
+
+#### Data Structures (`src/data/`)
+- Array, linked list, tree, graph layouts
+- SVG-based rendering
+- Pointer animations
+- State transitions
+
+#### Diagrams (`src/diagram/`)
+- Node-edge graph layouts via ELK.js
+- Auto-layout with customizable algorithms
+- Animated edge drawing
+- Label positioning
+
+#### Previews (`src/preview/`)
+- Live HTML/React rendering in iframe
+- On-the-fly JSX compilation (Babel via backend)
+- Isolated execution context
+
+### 4. Text-to-Speech (Backend + Frontend)
+
+**Backend**: `src-tauri/src/tts/`
+**Frontend**: `src/tts/`
+
+TTS synthesis uses the Kokoro neural TTS engine as a sidecar process:
+
+- Backend spawns and manages `koko` binary
+- Converts narration text to phonemes
+- Synthesizes speech with word-level timing
+- Returns audio as base64-encoded WAV
+- Frontend caches audio per narration block
+- Word boundaries sync trigger execution
+
+### 5. Interactive Labs (Frontend + Backend)
+
+**Frontend**: `src/lab/`
+**Backend**: `src-tauri/src/container.rs`, `pty.rs`, `lsp.rs`
+
+Labs provide a full IDE-like environment:
+
+- **Monaco Editor**: Code editing with syntax highlighting
+- **LSP Integration**: Real-time diagnostics and autocomplete
+- **PTY**: Terminal emulation for commands
+- **Container Orchestration**: Podman/Docker Compose for service dependencies
+- **File System**: Full read/write access to lab workspace
+- **Test Runner**: Integrated test execution and TAP parsing
+- **Git Integration**: Line-level diff visualization
+
+### 6. Course Management (Backend)
+
+**Location**: `src-tauri/src/course/`
+
+Course management handles:
+
+- Course discovery and import
+- SQLite-based metadata storage
+- Progress tracking (step completion, slide positions)
+- Course synchronization from Git repositories
+- Manifest parsing
+- File serving to frontend
+
+### 7. Database (Backend)
+
+**Location**: `src-tauri/src/db.rs`
+
+SQLite stores:
+
+- Course metadata (title, description, tags, paths)
+- User progress (completed steps, slide positions)
+- Lab provisioning state
+- Settings and preferences
+
+## Data Flow
+
+### Lesson Playback
+
+1. User selects a lesson from the browser
+2. Backend reads markdown file from disk
+3. Frontend parser converts markdown to IR
+4. Presentation engine loads lesson into Zustand store
+5. TTS synthesizes narration (cached in React Query)
+6. User presses play
+7. Audio plays, word boundaries fire triggers
+8. Triggers update scene state (show/hide/transform blocks)
+9. Visualization components react to state changes
+10. Animations execute via Motion library
+
+### Lab Execution
+
+1. User opens a lab
+2. Backend provisions workspace directory
+3. Backend copies scaffold files
+4. Backend starts language server (if configured)
+5. Frontend initializes Monaco editor
+6. User edits code
+7. LSP provides diagnostics and autocomplete
+8. User runs tests via terminal or test runner
+9. Backend executes commands via PTY
+10. Output streams back to frontend
+11. Test results parsed and displayed
+
+## IPC Communication
+
+All backend functions are exposed as Tauri commands and invoked from the frontend via `@tauri-apps/api`:
+
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+const result = await invoke('read_file', { path: '/path/to/file' });
+```
+
+Key command categories:
+
+- **TTS**: `synthesize`, `export_audio`, `ensure_tts_ready`
+- **File System**: `read_file`, `write_file`, `create_dir`, `delete_path`
+- **LSP**: `lsp_spawn`, `lsp_send`, `lsp_kill`
+- **PTY**: `pty_spawn`, `pty_write`, `pty_resize`, `pty_kill`
+- **Container**: `compose_up`, `compose_down`, `container_logs`
+- **Course**: `course_list`, `course_import`, `course_read_step`, `step_complete`
+- **Git**: `git_line_diff`, `git_status_files`
+
+## Build Process
+
+1. **Development**: `bun tauri dev`
+   - Vite dev server runs on port 5173
+   - Tauri watches Rust changes and recompiles
+   - Frontend hot-reloads on save
+
+2. **Production**: `bun tauri build`
+   - Vite builds optimized frontend bundle
+   - Rust compiles in release mode with LTO
+   - Tauri bundles app into platform-native installer
+   - Sidecar binaries embedded into bundle
+   - Resources (TTS models, espeak data) packaged
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Deep dive into React architecture
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Explore Rust backend internals
+  </Card>
+  <Card title="Parser" icon="code" href="/development/parser">
+    Understand the markdown parser
+  </Card>
+  <Card title="Presentation Engine" icon="play" href="/development/presentation-engine">
+    Learn how playback works
+  </Card>
+</CardGroup>

@@ -1,0 +1,379 @@
+---
+title: 'Labs'
+description: 'Interactive coding environments with automated testing and Docker services'
+icon: 'flask'
+---
+
+Labs are interactive coding exercises that run inside a full development environment with file editing, terminal access, automated tests, and optional Docker services. Each lab provides a sandboxed workspace where learners write real code and receive immediate feedback.
+
+## Lab Structure
+
+A lab is defined by a directory containing:
+
+- **lab.yaml** - Lab manifest with configuration
+- **instructions.md** - Markdown instructions shown to the user
+- **scaffold/** - Initial workspace files (copied on first run)
+- **overlay/** - Files applied on every lab start (overrides user changes)
+- **solution/** (optional) - Reference solution for comparison
+- **tests/** - Automated test suite
+
+### Lab Manifest (lab.yaml)
+
+```yaml lab.yaml
+title: "Build a REST API"
+workspace: fresh
+test: "npm test"
+open:
+  - "src/server.js"
+  - "src/routes.js"
+setup:
+  - "npm install"
+services:
+  - postgres
+  - redis
+```
+
+**Configuration fields:**
+
+<ResponseField name="title" type="string" required>
+  Display name shown in the lab header
+</ResponseField>
+
+<ResponseField name="workspace" type="'fresh' | 'continue'">
+  - `fresh`: Standalone workspace (default)
+  - `continue`: Shares workspace from previous lab
+</ResponseField>
+
+<ResponseField name="test" type="string" required>
+  Command to run automated tests (e.g., `npm test`, `pytest`, `cargo test`)
+</ResponseField>
+
+<ResponseField name="open" type="string[]">
+  Files to open in the editor when the lab starts
+</ResponseField>
+
+<ResponseField name="setup" type="string[]">
+  Shell commands to run during first-time provisioning (e.g., `npm install`, `pip install -r requirements.txt`)
+</ResponseField>
+
+<ResponseField name="services" type="(string | object)[]">
+  Docker services to start. Can use preset names (`postgres`, `redis`, `mongodb`) or custom service definitions.
+</ResponseField>
+
+## Lifecycle Phases
+
+Labs transition through a declarative lifecycle managed by React Query (src/lab/use-lifecycle.ts):
+
+<Steps>
+  <Step title="Uninitialized">
+    Lab manifest parsed, workspace path resolved
+  </Step>
+  
+  <Step title="Provisioning">
+    - Check for container runtime (if services defined)
+    - Scaffold workspace from `scaffold/` directory (first run only)
+    - Apply `overlay/` files (every run)
+    - Generate `docker-compose.yml` from service definitions
+    - Run `docker compose up` with health checks
+    - Execute setup commands
+    - Open initial files
+    - Spawn default terminal
+  </Step>
+  
+  <Step title="Ready">
+    Lab is fully operational, user can edit files and run tests
+  </Step>
+  
+  <Step title="Failed">
+    Provisioning encountered an error (displayed to user)
+  </Step>
+  
+  <Step title="Missing Runtime">
+    No Docker/Podman found (blocks labs with services)
+  </Step>
+  
+  <Step title="Tearing Down">
+    Services are being stopped (cleanup phase)
+  </Step>
+</Steps>
+
+## Workspace Modes
+
+### Fresh Workspace
+
+Each lab gets an isolated directory. User progress persists across sessions but is independent of other labs.
+
+**Use case:** Standalone exercises, self-contained projects
+
+### Continue Workspace
+
+Shares the workspace from the previous lab in the sequence. User builds incrementally on prior work.
+
+**Use case:** Multi-part tutorials where Lab 2 extends Lab 1's code
+
+<Warning>
+  The `overlay/` directory always applies, even in `continue` mode. Use it to update boilerplate between labs without touching user code.
+</Warning>
+
+## File System
+
+The lab environment provides full file tree access with:
+
+- **Monaco editor** with language servers (TypeScript, Python, Rust, Go, etc.)
+- **File tree** with create/rename/delete operations
+- **Git integration** with diff markers and status badges
+- **Split editor** for side-by-side editing (including solution comparison)
+- **Auto-save** with dirty state tracking
+
+### File Operations (src/lab/use-file-ops.ts)
+
+```typescript
+const { ops } = lab.files;
+
+// Create file/directory
+await ops.createFile("src/utils.js", "export const add = (a, b) => a + b;");
+await ops.createDir("src/components");
+
+// Rename/delete
+await ops.rename("old.js", "new.js");
+await ops.delete("temp.txt");
+```
+
+All operations automatically invalidate React Query cache and trigger file tree refresh.
+
+## Terminal Integration
+
+Labs provide full PTY (pseudo-terminal) access via `xterm.js` with:
+
+- Multiple terminal tabs
+- Shell persistence across UI sessions
+- Custom spawn options (shell, args, working directory)
+- Terminal rename and reordering
+
+### Spawning Terminals
+
+```typescript
+const { terminal } = lab;
+
+// Default shell
+await terminal.spawn();
+
+// Custom command
+await terminal.spawn({
+  shell: "npm",
+  args: ["run", "dev"],
+  cwd: "/workspace/src"
+});
+
+// Container exec
+await terminal.spawn({
+  shell: "docker",
+  args: ["exec", "-it", "postgres_container", "/bin/sh"]
+});
+```
+
+Terminals are backed by Tauri commands (src/lab/tauri/terminal.ts) that spawn native OS processes.
+
+## Automated Testing
+
+Labs run test commands and parse output to provide structured feedback.
+
+### TAP Format Parser
+
+The test runner (src/lab/use-test-runner.ts) parses TAP (Test Anything Protocol) output:
+
+```tap
+TAP version 14
+1..3
+ok 1 - should parse JSON
+ok 2 - should handle errors
+not ok 3 - should validate schema
+```
+
+Parsed into:
+
+```typescript
+type TestAssertion = {
+  index: number;
+  description: string;
+  passed: boolean;
+};
+```
+
+### Test States
+
+<CardGroup cols={2}>
+  <Card title="Idle" icon="circle">
+    No test run initiated
+  </Card>
+  <Card title="Running" icon="spinner">
+    Test command executing, streaming output
+  </Card>
+  <Card title="Passed" icon="check">
+    All assertions passed
+  </Card>
+  <Card title="Failed" icon="xmark">
+    One or more assertions failed
+  </Card>
+  <Card title="Error" icon="triangle-exclamation">
+    Test command crashed or exited non-zero without TAP
+  </Card>
+</CardGroup>
+
+### Custom Test Commands
+
+Labs support any test runner that produces output:
+
+- **JavaScript:** `npm test`, `jest`, `vitest`
+- **Python:** `pytest`, `unittest`
+- **Rust:** `cargo test`
+- **Go:** `go test ./...`
+
+For best UX, configure runners to output TAP format.
+
+## Docker Services
+
+Labs can define containerized services that start automatically.
+
+### Preset Services (src/lab/presets.ts)
+
+```yaml
+services:
+  - postgres    # PostgreSQL 16 on port 5432
+  - redis       # Redis 7 on port 6379
+  - mongodb     # MongoDB 7 on port 27017
+  - mysql       # MySQL 8 on port 3306
+```
+
+Presets include health checks and default environment variables.
+
+### Custom Services
+
+```yaml
+services:
+  - name: api
+    image: node:20-alpine
+    port: 3000
+    hostPort: 3000
+    env:
+      NODE_ENV: development
+      DATABASE_URL: postgres://localhost:5432/mydb
+    healthcheck: "curl -f http://localhost:3000/health || exit 1"
+```
+
+### Container Lifecycle
+
+Service containers are managed by `docker-compose.yml` generated at runtime:
+
+1. Detect runtime (Docker or Podman)
+2. Generate compose file (src/lab/compose.ts)
+3. Run `compose up` with streaming event logs
+4. Poll health checks until all services healthy
+5. Update service status badges in UI
+
+Container orchestration is handled by src/lab/use-containers.ts.
+
+### Container Actions
+
+The Services panel provides:
+
+- **Start/Stop/Restart** individual containers
+- **View Logs** with streaming output
+- **Exec into container** (spawns terminal with `/bin/sh`)
+- **Container status** (starting, healthy, failed)
+
+## Language Server Protocol (LSP)
+
+Labs integrate language servers for IntelliSense, go-to-definition, and diagnostics.
+
+### Supported Languages (src/lab/lsp/server-registry.ts)
+
+- **TypeScript/JavaScript:** `typescript-language-server`
+- **Python:** `pyright`
+- **Rust:** `rust-analyzer`
+- **Go:** `gopls`
+
+LSP servers run as child processes and communicate over JSON-RPC. Monaco adapters (src/lab/lsp/monaco-adapters.ts) bridge LSP protocol to Monaco editor APIs.
+
+### Document Sync
+
+The LSP client (src/lab/lsp/document-sync.ts) maintains:
+
+- `textDocument/didOpen` on file open
+- `textDocument/didChange` on editor changes (debounced)
+- `textDocument/didSave` on save
+- `textDocument/didClose` on file close
+
+Diagnostics are synced to Monaco markers for inline error squiggles.
+
+## Vim Mode
+
+Labs support Vim keybindings via Monaco's Vim mode adapter (src/lab/vim-status-store.ts).
+
+Toggle with `Ctrl+Shift+V` or through settings.
+
+## Solution Comparison
+
+When a `solution/` directory exists, users can open solution files side-by-side with their code:
+
+```typescript
+const { solution } = lab;
+
+if (solution.available) {
+  solution.openSolution("src/server.js");
+}
+```
+
+Solution files open in the right pane and are marked with a badge.
+
+## Hotkeys
+
+Labs provide extensive keyboard shortcuts (src/lab/hotkeys/registry.ts):
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` | Save active file |
+| `Ctrl+P` | Open command palette |
+| `Ctrl+Shift+P` | Open file picker |
+| `Ctrl+B` | Toggle file tree |
+| `Ctrl+J` | Toggle terminal |
+| `Ctrl+Shift+T` | Run tests |
+| `Ctrl+G` | Go to line |
+| `Ctrl+Shift+V` | Toggle Vim mode |
+
+## Persistence
+
+Lab workspaces persist across sessions using a SQLite database (src-tauri/src/workspace.rs):
+
+- First-run detection (scaffold only applied once)
+- Workspace path resolution
+- User file edits preserved
+- Terminal state persists
+
+The `overlay/` directory is the only mechanism to override user changes.
+
+## Example Lab Structure
+
+```
+my-api-lab/
+├── lab.yaml
+├── instructions.md
+├── scaffold/
+│   ├── package.json
+│   ├── src/
+│   │   ├── server.js
+│   │   └── routes.js
+│   └── tests/
+│       └── api.test.js
+├── solution/
+│   └── src/
+│       ├── server.js
+│       └── routes.js
+└── overlay/
+    └── tests/
+        └── api.test.js  # Updated tests, always applied
+```
+
+<Tip>
+  Use `workspace: continue` for multi-lab sequences. Lab 2 can reference Lab 1's code without re-scaffolding.
+</Tip>

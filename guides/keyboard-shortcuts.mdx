@@ -1,0 +1,150 @@
+---
+title: Keyboard Shortcuts
+description: Complete reference for Handhold keyboard shortcuts
+---
+
+Handhold supports keyboard shortcuts for efficient navigation and editing. Shortcuts use `Cmd` on macOS and `Ctrl` on Windows/Linux.
+
+<Info>Press `Cmd+/` or `Ctrl+/` in any lab to view the shortcuts overlay</Info>
+
+## Lessons
+
+Keyboard shortcuts for lesson playback and navigation:
+
+| Shortcut | Action |
+|----------|--------|
+| `Space` | Play/Pause, or advance to next step if current step is complete |
+| `→` | Next step |
+| `←` | Previous step |
+
+<Tip>Keyboard shortcuts only work when the lesson view is focused. Click the stage area to ensure focus.</Tip>
+
+## Labs: File Operations
+
+Manage files and tabs:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+S` / `Ctrl+S` | Save current file |
+| `Cmd+W` / `Ctrl+W` | Close current tab |
+| `Cmd+P` / `Ctrl+P` | Quick file search (Go to file) |
+| `Cmd+Shift+P` / `Ctrl+Shift+P` | Command palette |
+
+## Labs: Navigation
+
+Navigate between files and panels:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+G` / `Ctrl+G` | Go to line |
+| `Cmd+Shift+]` / `Ctrl+Shift+]` | Next tab |
+| `Cmd+Shift+[` / `Ctrl+Shift+[` | Previous tab |
+| `Cmd+1` / `Ctrl+1` | Focus left editor pane |
+| `Cmd+2` / `Ctrl+2` | Focus right editor pane (if split view is active) |
+
+## Labs: View
+
+Toggle panels and overlays:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+B` / `Ctrl+B` | Toggle sidebar |
+| `Cmd+/` / `Ctrl+/` | Show keyboard shortcuts overlay |
+| `Escape` | Close overlay (closes command palette, go-to-line dialog, or shortcuts overlay) |
+
+## Labs: Editor
+
+Code editing shortcuts:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+D` / `Ctrl+D` | Add next occurrence to selection (multi-cursor) |
+| `Cmd+K` `Cmd+C` / `Ctrl+K` `Ctrl+C` | Toggle comment (sequence shortcut) |
+| `Cmd+K` `Cmd+U` / `Ctrl+K` `Ctrl+U` | Uncomment (sequence shortcut) |
+| `Cmd+K` `Cmd+0` / `Ctrl+K` `Ctrl+0` | Fold all code blocks |
+| `Cmd+K` `Cmd+J` / `Ctrl+K` `Ctrl+J` | Unfold all code blocks |
+| `Cmd+\\` / `Ctrl+\\` | Split editor right |
+
+<Info>Sequence shortcuts require pressing the first combination, then the second. For example: `Cmd+K` followed by `Cmd+C`</Info>
+
+## Labs: Terminal
+
+Terminal shortcuts:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+\`` / `Ctrl+\`` | Focus terminal |
+| `Cmd+Shift+\`` / `Ctrl+Shift+\`` | New terminal |
+
+## Built-in Monaco Editor Shortcuts
+
+Handhold's Monaco editor supports standard VS Code shortcuts:
+
+### Editing
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+X` / `Ctrl+X` | Cut line (empty selection) |
+| `Cmd+C` / `Ctrl+C` | Copy line (empty selection) |
+| `Option+↓` / `Alt+↓` | Move line down |
+| `Option+↑` / `Alt+↑` | Move line up |
+| `Shift+Option+↓` / `Shift+Alt+↓` | Copy line down |
+| `Shift+Option+↑` / `Shift+Alt+↑` | Copy line up |
+| `Cmd+Shift+K` / `Ctrl+Shift+K` | Delete line |
+| `Cmd+Enter` / `Ctrl+Enter` | Insert line below |
+| `Cmd+Shift+Enter` / `Ctrl+Shift+Enter` | Insert line above |
+| `Cmd+]` / `Ctrl+]` | Indent line |
+| `Cmd+[` / `Ctrl+[` | Outdent line |
+| `Cmd+/` / `Ctrl+/` | Toggle line comment |
+
+### Selection
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+L` / `Ctrl+L` | Select current line |
+| `Cmd+Shift+L` / `Ctrl+Shift+L` | Select all occurrences of current selection |
+| `Option+Shift+I` / `Alt+Shift+I` | Insert cursor at end of each line selected |
+| `Cmd+Option+↓` / `Ctrl+Alt+↓` | Add cursor below |
+| `Cmd+Option+↑` / `Ctrl+Alt+↑` | Add cursor above |
+
+### Find and Replace
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+F` / `Ctrl+F` | Find |
+| `Cmd+Option+F` / `Ctrl+H` | Replace |
+| `Cmd+G` / `F3` | Find next |
+| `Cmd+Shift+G` / `Shift+F3` | Find previous |
+
+### Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+P` / `Ctrl+P` | Go to file |
+| `Cmd+Shift+O` / `Ctrl+Shift+O` | Go to symbol in file |
+| `F12` | Go to definition |
+| `Option+F12` / `Alt+F12` | Peek definition |
+| `Cmd+K F12` / `Ctrl+K F12` | Open definition to the side |
+| `Shift+F12` | Show references |
+
+## Vim Mode
+
+If Vim mode is enabled in Settings, standard Vim keybindings are available:
+
+- Normal mode: `Esc` or `Ctrl+[`
+- Insert mode: `i`, `a`, `o`, etc.
+- Visual mode: `v`, `V`, `Ctrl+V`
+- Command mode: `:`
+- Search: `/`, `?`
+
+<Warning>Vim mode keyboard shortcuts override some Monaco defaults. The Vim status indicator appears in the status bar when active.</Warning>
+
+## Customization
+
+Handhold shortcuts are designed to match VS Code conventions. Most shortcuts cannot be customized, but you can:
+
+- Enable/disable Vim mode in Settings
+- Use the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) to discover available commands
+- View all shortcuts by pressing `Cmd+/` / `Ctrl+/` in any lab
+
+<Tip>The shortcuts overlay groups shortcuts by category: File, Navigation, View, Editor, and Terminal</Tip>

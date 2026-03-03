@@ -1,0 +1,375 @@
+---
+title: Building and Running
+description: How to build, run, and package Handhold for development and production
+---
+
+This guide covers the development workflow, build commands, and distribution packaging for Handhold.
+
+## Development Workflow
+
+### Running in Development Mode
+
+The development server provides hot reload for both frontend and backend:
+
+```bash
+bun tauri dev
+```
+
+This command:
+
+1. Starts Vite dev server on `http://localhost:5173`
+2. Compiles Rust backend in debug mode
+3. Launches the Tauri app window
+4. Watches for file changes
+
+**Frontend changes** (TypeScript, React, CSS) apply instantly via Vite HMR.
+
+**Backend changes** (Rust files) trigger a full recompile, which takes 10-30 seconds depending on your machine.
+
+### Development Tips
+
+<Tip>
+Keep the terminal output visible. Rust compilation errors and Tauri runtime errors appear here.
+</Tip>
+
+<Note>
+The dev build is significantly slower than production. Use it for development only.
+</Note>
+
+### Opening DevTools
+
+To inspect the frontend or debug JavaScript:
+
+<Tabs>
+  <Tab title="macOS">
+    Press `Cmd+Option+I` or right-click and select "Inspect Element"
+  </Tab>
+  <Tab title="Linux">
+    Press `Ctrl+Shift+I` or right-click and select "Inspect Element"
+  </Tab>
+  <Tab title="Windows">
+    Press `F12` or right-click and select "Inspect Element"
+  </Tab>
+</Tabs>
+
+### Rust Logging
+
+Tauri logs Rust backend output to the terminal. Use standard Rust debugging:
+
+```rust
+println!("Debug: {:?}", value);
+eprintln!("Error: {}", error);
+```
+
+For more structured logging, consider adding the `log` and `env_logger` crates.
+
+## Frontend-Only Development
+
+If you're only working on UI components that don't require backend features, you can run Vite standalone:
+
+```bash
+bun run dev
+```
+
+This is faster than `bun tauri dev` but won't have access to Tauri APIs.
+
+## Production Builds
+
+### Build Command
+
+To create a production build:
+
+```bash
+bun tauri build
+```
+
+This:
+
+1. Runs `bun run build` to compile the frontend
+2. Compiles Rust in release mode with optimizations
+3. Bundles everything into a platform-native installer
+4. Outputs the installer to `src-tauri/target/release/bundle/`
+
+### Build Artifacts
+
+<Tabs>
+  <Tab title="macOS">
+    - `.dmg` disk image installer
+    - `.app` bundle in `target/release/bundle/macos/`
+
+    The DMG is code-signed if you have a Developer ID certificate. Otherwise, it's unsigned and will require users to bypass Gatekeeper.
+  </Tab>
+  <Tab title="Linux">
+    - `.AppImage` portable executable
+    - `.deb` Debian package
+
+    Both are located in `target/release/bundle/appimage/` and `target/release/bundle/deb/` respectively.
+  </Tab>
+  <Tab title="Windows">
+    - `.msi` installer
+    - `.exe` portable executable
+
+    Both are in `target/release/bundle/msi/` and `target/release/bundle/nsis/` respectively.
+  </Tab>
+</Tabs>
+
+### Build Options
+
+#### Debug Build (Faster, Larger)
+
+```bash
+cargo build --manifest-path src-tauri/Cargo.toml
+```
+
+This compiles Rust without optimizations. Useful for debugging crashes.
+
+#### Release Build (Optimized)
+
+```bash
+cargo build --release --manifest-path src-tauri/Cargo.toml
+```
+
+Full optimizations enabled. This is what `bun tauri build` uses.
+
+## Configuration
+
+### Tauri Config
+
+**Location**: `src-tauri/tauri.conf.json`
+
+Key settings:
+
+```json
+{
+  "productName": "Handhold",
+  "version": "0.2.13",
+  "identifier": "com.handhold.app",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  }
+}
+```
+
+- `beforeDevCommand`: Runs before dev mode (starts Vite)
+- `beforeBuildCommand`: Runs before production build (builds frontend)
+- `devUrl`: Dev server URL
+- `frontendDist`: Production build output directory
+
+### Version Bumping
+
+Update the version in three places:
+
+1. `package.json` (frontend)
+2. `src-tauri/Cargo.toml` (backend)
+3. `src-tauri/tauri.conf.json` (Tauri config)
+
+Then rebuild:
+
+```bash
+bun tauri build
+```
+
+## Cross-Platform Builds
+
+### Building for Multiple Platforms
+
+Tauri requires native builds on each platform. You cannot cross-compile from macOS to Windows, for example.
+
+To build for all platforms:
+
+1. Build on macOS for macOS (ARM + Intel via universal binary)
+2. Build on Linux for Linux
+3. Build on Windows for Windows
+
+The official release workflow uses GitHub Actions to automate this.
+
+### Universal macOS Binaries
+
+To build a universal binary (ARM + Intel):
+
+```bash
+rustup target add aarch64-apple-darwin
+rustup target add x86_64-apple-darwin
+bun tauri build --target universal-apple-darwin
+```
+
+## Sidecar Binaries
+
+Handhold bundles the Kokoro TTS binary as a sidecar. The binary must match the target platform:
+
+- macOS ARM: `koko-aarch64-apple-darwin`
+- macOS Intel: `koko-x86_64-apple-darwin`
+- Linux: `koko-x86_64-unknown-linux-gnu`
+- Windows: `koko-x86_64-pc-windows-msvc.exe`
+
+Tauri automatically selects the correct binary based on the build target.
+
+**Sidecar location**: `src-tauri/binaries/`
+
+## Bundled Resources
+
+The following resources are packaged into the installer:
+
+- `src-tauri/resources/models/` - TTS voice models
+- `src-tauri/resources/espeak-ng-data/` - Phoneme data
+
+These are specified in `tauri.conf.json`:
+
+```json
+{
+  "bundle": {
+    "resources": [
+      "resources/models/",
+      "resources/espeak-ng-data/"
+    ]
+  }
+}
+```
+
+## Testing Builds Locally
+
+After building, test the installer:
+
+<Tabs>
+  <Tab title="macOS">
+    Open the `.dmg` and drag the app to Applications. Then run it from Applications.
+
+    If unsigned, macOS will block it. Right-click the app and select "Open" to bypass Gatekeeper.
+  </Tab>
+  <Tab title="Linux">
+    For AppImage:
+    ```bash
+    chmod +x Handhold.AppImage
+    ./Handhold.AppImage
+    ```
+
+    For .deb:
+    ```bash
+    sudo dpkg -i handhold_*.deb
+    handhold
+    ```
+  </Tab>
+  <Tab title="Windows">
+    Run the `.msi` installer and follow the prompts. The app will be installed to `%LOCALAPPDATA%\Programs\Handhold`.
+  </Tab>
+</Tabs>
+
+## Continuous Integration
+
+The project includes a GitHub Actions workflow that:
+
+1. Runs on every push to `main`
+2. Builds on macOS, Linux, and Windows runners
+3. Runs tests (when available)
+4. Uploads build artifacts
+
+**Workflow file**: `.github/workflows/ci.yml`
+
+## Release Process
+
+To trigger a release build:
+
+<Steps>
+  <Step title="Bump version">
+    Update version in `package.json`, `Cargo.toml`, and `tauri.conf.json`.
+  </Step>
+
+  <Step title="Commit and tag">
+    ```bash
+    git add .
+    git commit -m "chore: bump version to v0.3.0"
+    git tag v0.3.0
+    git push origin main --tags
+    ```
+  </Step>
+
+  <Step title="Wait for CI">
+    GitHub Actions automatically builds for all platforms and creates a draft release.
+  </Step>
+
+  <Step title="Publish release">
+    Go to the GitHub Releases page, review the draft, and click "Publish".
+  </Step>
+</Steps>
+
+**Release workflow**: `.github/workflows/release.yml`
+
+The workflow builds:
+
+- `.dmg` for macOS (ARM + Intel universal)
+- `.AppImage` and `.deb` for Linux
+- `.msi` and `.exe` for Windows
+
+All artifacts are uploaded to the GitHub Release.
+
+## Troubleshooting
+
+### Build fails with "Cargo.lock is out of date"
+
+```bash
+cd src-tauri
+cargo update
+```
+
+### Frontend build fails
+
+Clear Vite cache:
+
+```bash
+rm -rf node_modules/.vite dist
+bun run build
+```
+
+### Sidecar binary not found
+
+Ensure the TTS binary exists:
+
+```bash
+ls -l src-tauri/binaries/
+```
+
+Re-run the setup script:
+
+```bash
+bash scripts/install.sh
+```
+
+### Rust compilation is slow
+
+Enable faster linking (Linux/macOS):
+
+```bash
+brew install llvm  # macOS
+sudo apt-get install lld  # Linux
+```
+
+Add to `~/.cargo/config.toml`:
+
+```toml
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
+    Learn how to contribute to Handhold
+  </Card>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Explore the React frontend
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Dive into the Rust backend
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Understand the system design
+  </Card>
+</CardGroup>

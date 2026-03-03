@@ -1,0 +1,283 @@
+---
+title: Authoring Overview
+description: Introduction to creating narrated, animated programming courses with Handhold
+---
+
+Handhold courses are narrated, animated presentations where every visual change is synchronized to spoken words. You write lessons in Markdown using a specialized DSL that controls timing, visuals, and narration.
+
+## What You'll Create
+
+A Handhold course consists of:
+
+- **Lessons**: Narrated presentations with synchronized code, data structures, diagrams, and animations
+- **Labs**: Hands-on coding exercises with real editors, tests, and services
+- **Course Arc**: A carefully designed progression from problem to solution
+
+<Note>
+Courses alternate between teaching (lessons) and doing (labs). This rhythm builds understanding through immediate application.
+</Note>
+
+## Core Principles
+
+### The Mirror Principle
+
+What is spoken is what is shown. Always. The screen reflects the narration at word-level granularity. If you mention "the loop," the loop is already focused.
+
+```markdown
+{{focus: loop}} The loop processes one character at a time.
+```
+
+The `{{focus: loop}}` trigger fires before the narration, ensuring the visual and verbal are synchronized.
+
+### Problem First
+
+Every lesson opens with a problem the learner can feel. Not a definition. A situation where the gap in knowledge creates tension.
+
+**Good opening:**
+> You have a list of a million names and you need to find one. Starting at the front and checking each entry could take a million steps. Hash maps do it in one.
+
+**Bad opening:**
+> Hash maps are a fundamental data structure that provide O(1) average-case lookup time using a hash function to compute array indices.
+
+### One Change Per Beat
+
+Each trigger changes one thing on screen. Each paragraph advances one idea. Compound changes use multiple triggers, not one overloaded trigger.
+
+```markdown
+{{show: hash-fn}} Here's our hash function.
+
+{{focus: signature}} It takes a string and returns a number.
+
+{{focus: loop}} The loop processes one character at a time.
+```
+
+### Dense Choreography
+
+Every sentence has at least one trigger. Many have two or three. The screen is never static while narration plays. A paragraph with no triggers is a bug.
+
+```markdown
+{{focus: pick}} {{zoom: 1.2x}} {{annotate: pick "Greedy choice"}} Pick the unvisited node with the smallest known distance.
+```
+
+## The Authoring DSL
+
+Handhold uses a specialized Markdown syntax with three key elements:
+
+### Triggers
+
+Inline commands using double-brace syntax: `{{verb: arguments}}`. They fire at the word position where they appear.
+
+<Accordion title="Common Triggers">
+  <AccordionItem title="show">
+    Reveal a visualization block on stage
+    ```markdown
+    {{show: block-name}}
+    {{show: block-name slide 0.5s ease-out}}
+    ```
+  </AccordionItem>
+  
+  <AccordionItem title="focus">
+    Highlight a specific region, dim everything else
+    ```markdown
+    {{focus: region-name}}
+    {{focus: none}}
+    ```
+  </AccordionItem>
+  
+  <AccordionItem title="clear">
+    Remove all blocks and reset the scene
+    ```markdown
+    {{clear}}
+    {{clear: slide}}
+    ```
+  </AccordionItem>
+  
+  <AccordionItem title="annotate">
+    Attach a text label to a region
+    ```markdown
+    {{annotate: region-name "Label text"}}
+    ```
+  </AccordionItem>
+  
+  <AccordionItem title="zoom">
+    Scale the visualization
+    ```markdown
+    {{zoom: 1.2x}}
+    {{zoom: region-name 1.5x}}
+    ```
+  </AccordionItem>
+</Accordion>
+
+### Visualization Blocks
+
+Code fences that define what the audience sees: code, data structures, diagrams, math, charts, or HTML/React previews.
+
+````markdown
+```code:hash-fn lang=ts
+function hash(key: string): number {
+  let h = 0
+  for (const ch of key) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0
+  }
+  return h
+}
+---
+signature: 1
+init: 2
+loop: 3-5
+return-val: 7
+```
+````
+
+### Regions
+
+Named sub-elements within blocks that triggers can reference. Defined in a footer section below a `---` separator.
+
+<Warning>
+Region names should be semantic (describing the concept), not positional. Use `signature`, `loop-body`, `hash-step` — never `line-3`, `top-part`.
+</Warning>
+
+## Lesson Structure
+
+A lesson is a single Markdown file with:
+
+<Steps>
+  <Step title="Frontmatter">
+    YAML metadata containing the title
+    ```yaml
+    ---
+    title: How Hash Maps Work
+    ---
+    ```
+  </Step>
+  
+  <Step title="Steps">
+    H1 headings (`# Step Name`) that divide the lesson into scenes. Each step teaches one core idea.
+    ```markdown
+    # The problem
+    
+    Narration and code blocks...
+    
+    # The solution
+    
+    More narration and blocks...
+    ```
+  </Step>
+  
+  <Step title="Content">
+    Narration paragraphs and visualization blocks, interleaved within each step. Triggers in narration control when and how blocks appear.
+  </Step>
+</Steps>
+
+## Writing for TTS
+
+Narration is read aloud by text-to-speech. This imposes specific constraints:
+
+### Read Everything Aloud
+
+Before committing a paragraph, read it out loud. If it sounds stilted or robotic, rewrite it.
+
+### Use Contractions
+
+"That's the idea" beats "That is the idea." TTS handles contractions naturally.
+
+### Short Sentences
+
+Long compound sentences with multiple clauses are hard for listeners to parse. Break them up.
+
+**Bad:**
+> The function takes the key, computes a hash value using the polynomial rolling hash algorithm, and then applies the modulo operator to map the result into the valid index range.
+
+**Good:**
+> The function takes a key. It computes a hash value. Then it maps that value to an array index using modulo.
+
+### Spell Out Math and Code
+
+| Written | TTS Says | Write Instead |
+|---------|----------|---------------|
+| `O(n)` | "oh en" | "O of n" or "linear time" |
+| `2^6` | "two caret six" | "two to the sixth power" |
+| `&&` | "ampersand ampersand" | "and" |
+| `===` | "equals equals equals" | "strict equality" |
+
+## Workflow
+
+The recommended authoring process:
+
+<Steps>
+  <Step title="Research">
+    Find 3-5 sources, extract "aha moments", build a concept dependency graph
+  </Step>
+  
+  <Step title="Architecture">
+    Plan the lesson-lab rhythm, step names, and overall arc pattern (sandwich, build-up, comparison, or reveal)
+  </Step>
+  
+  <Step title="Block Planning">
+    List every visualization block per step, name them, define regions
+  </Step>
+  
+  <Step title="Storyboard">
+    Sketch the scene sequence before writing narration
+  </Step>
+  
+  <Step title="Narration">
+    Write for TTS, place triggers at exact word positions
+  </Step>
+  
+  <Step title="Polish">
+    Read aloud, verify mirror principle, check choreography density
+  </Step>
+  
+  <Step title="Verify">
+    Run parser validation, QA checklist, scan for common mistakes
+  </Step>
+</Steps>
+
+## Common Mistakes
+
+<Accordion title="Common Authoring Mistakes">
+  <AccordionItem title="Paragraph with no triggers">
+    Add focus, annotate, or zoom. Every sentence needs a visual beat.
+  </AccordionItem>
+  
+  <AccordionItem title="Long code block (15+ lines), no zoom">
+    Zoom is mandatory. Pattern: 1x overview, 1.2x on focus, 1x reset, repeat.
+  </AccordionItem>
+  
+  <AccordionItem title="Talking about something not on screen">
+    Show it first, or move the narration to after the show trigger.
+  </AccordionItem>
+  
+  <AccordionItem title="Annotation text is a full sentence">
+    Keep to 2-5 words. Intent labels: "The invariant", "Greedy choice".
+  </AccordionItem>
+  
+  <AccordionItem title="Region named line-3">
+    Use semantic names: `loop-body`, `return-val`, `hash-step`.
+  </AccordionItem>
+  
+  <AccordionItem title="Split with 3+ panels">
+    Max 2. Left=code, Right=visual.
+  </AccordionItem>
+  
+  <AccordionItem title="Dead narration (no visual change for 10+ seconds)">
+    Break up with focus shifts, zoom, or annotations.
+  </AccordionItem>
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Course Architecture" icon="sitemap" href="/authoring/course-architecture">
+    Learn how to structure courses, design arcs, and plan steps
+  </Card>
+  
+  <Card title="Writing Lessons" icon="pen" href="/authoring/writing-lessons">
+    Master the DSL, triggers, blocks, and narration craft
+  </Card>
+  
+  <Card title="Creating Labs" icon="flask" href="/authoring/creating-labs">
+    Design hands-on coding exercises with tests and services
+  </Card>
+</CardGroup>

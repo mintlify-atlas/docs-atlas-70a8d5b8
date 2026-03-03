@@ -1,0 +1,282 @@
+---
+title: Diagram Visualizations
+description: Architecture diagrams with nodes, edges, and automatic layout
+---
+
+Diagram blocks create system architecture diagrams with automatic layout, icons, and flow animations.
+
+## Basic Syntax
+
+Use a code fence with the `diagram` kind:
+
+````markdown
+```diagram:system
+client [client]
+gw [api-gateway]
+api [service]
+db [database]
+cache [cache]
+
+client --> gw
+gw --> api
+api --> db
+api --reads--> cache
+
+{Backend: gw, api, db, cache}
+---
+storage: db
+fast-path: cache
+gateway: gw
+```
+````
+
+**Format**: `` ```diagram:name ``
+
+- `name`: Unique identifier for the diagram
+
+## Node Syntax
+
+Nodes are defined with an ID and type in brackets:
+
+```
+node-id [type]
+```
+
+### Node IDs
+
+Node IDs can contain:
+- Letters (a-z, A-Z)
+- Digits (0-9)
+- Hyphens (`-`)
+- Underscores (`_`)
+
+Examples: `api`, `cache-01`, `db_primary`, `load-balancer`
+
+### Node Types
+
+Handhold supports the following node types:
+
+| Type | Description | Default Icon |
+|------|-------------|-------------|
+| `service` | Generic service/compute | AWS EC2 |
+| `database` | Database | AWS RDS |
+| `client` | Client application | Resource Client |
+| `user` | End user | Resource User |
+| `server` | Server instance | AWS EC2 |
+| `cache` | Cache layer | AWS ElastiCache |
+| `queue` | Message queue | AWS SQS |
+| `message-queue` | Message queue | AWS SQS |
+| `load-balancer` | Load balancer | AWS ELB |
+| `api-gateway` | API gateway | AWS API Gateway |
+
+### Bracket Syntax
+
+The content inside `[...]` can be:
+
+**Bare word (sets type):**
+```
+api [service]
+db [database]
+```
+
+**Explicit type parameter:**
+```
+cdn [type=service]
+```
+
+**Icon override:**
+```
+gw [api-gateway icon=aws:apigateway]
+cdn [service icon=aws:cloudfront]
+```
+
+**Combined:**
+```
+auth [service icon=aws:cognito]
+cdn [type=service icon=aws:cloudfront]
+```
+
+First bare word wins as the type. If no bare word, defaults to `service`.
+
+## AWS Icon Keys
+
+Nodes render as AWS architecture icons by default. You can override with `icon=aws:<key>`:
+
+| Key | Aliases | Service |
+|-----|---------|----------|
+| `apigateway` | `api-gateway` | Amazon API Gateway |
+| `elb` | `load-balancer` | Elastic Load Balancing |
+| `rds` | `database` | Amazon RDS |
+| `elasticache` | `cache` | Amazon ElastiCache |
+| `sqs` | `queue`, `message-queue` | Amazon SQS |
+| `s3` | `object-store` | S3 Standard |
+| `cloudfront` | `cdn` | Amazon CloudFront |
+| `cognito` | `auth` | Amazon Cognito |
+| `ec2` | `server`, `service`, `compute` | Amazon EC2 |
+| `client` | — | Resource Client |
+| `user` | `users` | Resource User |
+
+## Edge Syntax
+
+### Basic Edges
+
+Connect nodes with arrows:
+
+```
+from --> to
+```
+
+### Labeled Edges
+
+Add labels between dashes:
+
+```
+api --writes--> db
+cache --reads--> db
+client --HTTPS--> gateway
+```
+
+Labels can contain letters, numbers, spaces, and basic punctuation.
+
+## Groups
+
+Group related nodes with a visual boundary:
+
+```
+{Group Name: node1, node2, node3}
+```
+
+Groups:
+- Draw a rounded rectangle around members
+- Add a label at the top-left
+- Support nesting (group IDs can be members)
+
+### Example
+
+```
+{Backend: api, db, cache}
+{Frontend: web, mobile}
+{Infrastructure: Backend, Frontend, gateway}
+```
+
+## Regions
+
+Regions target node IDs for animations:
+
+```
+---
+entry-point: gateway
+data-layer: db, cache
+compute: api, worker
+```
+
+## Triggers
+
+Diagrams support flow and emphasis triggers:
+
+- `{{focus: region}}` - Highlight specific nodes
+- `{{pulse: region}}` - Brief emphasis
+- `{{flow: path}}` - Animated flow through edges (looping dashes)
+- `{{trace: path}}` - Highlight path (static)
+- `{{draw: edges}}` - One-shot edge drawing animation
+- `{{pan: region}}` - Center viewport on nodes
+- `{{annotate: region "text"}}` - Floating labels
+
+### Flow Paths
+
+For `flow`, `trace`, and `draw` triggers, define a path as a region:
+
+```
+---
+request-path: client, gateway, api, db
+```
+
+Then trigger it:
+
+```
+{{flow: request-path}}
+```
+
+The renderer animates the edges: `client→gateway`, `gateway→api`, `api→db`.
+
+## Layout
+
+Diagrams use automatic layout via ELK (Eclipse Layout Kernel):
+
+- Nodes are positioned to minimize edge crossings
+- Hierarchical layout when possible
+- Groups create visual containers
+- Manual positioning not supported (by design)
+
+For specific layouts, use data structures (e.g., `type=graph layout=tree`).
+
+## Real Example
+
+````markdown
+# E-Commerce Request Flow
+
+{{show: arch}} Here's our e-commerce architecture. {{focus: frontend}} Requests start at the client. {{flow: checkout-path}} During checkout, the request flows through the gateway to the API, {{pulse: db}} writes to the database, {{pulse: cache}} and updates the cache.
+
+```diagram:arch
+user [user]
+web [client]
+gateway [api-gateway icon=aws:apigateway]
+api [service]
+auth [service icon=aws:cognito]
+db [database]
+cache [cache]
+queue [message-queue]
+
+user --> web
+web --> gateway
+gateway --> api
+gateway --> auth
+api --> db
+api --> cache
+api --orders--> queue
+
+{Frontend: user, web}
+{Backend: gateway, api, auth, db, cache, queue}
+---
+frontend: user, web
+gateway: gateway
+checkout-path: web, gateway, api, db, cache
+data-layer: db, cache
+```
+````
+
+## Best Practices
+
+### Node Naming
+
+**Do**: Use semantic, role-based names
+```
+api-server [service]
+user-db [database]
+session-cache [cache]
+```
+
+**Don't**: Use generic names
+```
+server1 [service]
+db [database]
+cache [cache]
+```
+
+### Edge Labels
+
+- Keep labels short (1-3 words)
+- Use verbs for actions: `writes`, `reads`, `queries`
+- Use protocols when relevant: `HTTPS`, `gRPC`, `WebSocket`
+
+### Groups
+
+- Group by architectural tier: Frontend, Backend, Data
+- Group by security boundary: Public, Private, DMZ
+- Group by deployment unit: Service A, Service B
+
+### Diagram Size
+
+- Keep diagrams under 15 nodes for clarity
+- Split large systems into multiple diagrams
+- Use groups to manage visual complexity

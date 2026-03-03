@@ -1,0 +1,483 @@
+---
+title: Data Structure Visualizations
+description: Animated visualizations of arrays, trees, graphs, and 40+ data structures
+---
+
+Data blocks render interactive visualizations of data structures with support for animations, focus, and algorithm traces.
+
+## Basic Syntax
+
+Use a code fence with the `data` kind and type parameter:
+
+````markdown
+```data:names type=array
+["Alice", "Bob", "Dana", "Eve"]
+^check=0
+---
+first: 0
+found: 2
+```
+````
+
+**Format**: `` ```data:name type=structure-type ``
+
+- `name`: Unique identifier for the block
+- `type`: Data structure type (see below)
+
+## Data Structure Types
+
+Handhold supports 17 data structure categories with 40+ variants:
+
+<Accordion title="Linear Structures">
+
+### Array (`type=array`)
+
+Fixed-size contiguous elements with index-based access.
+
+````markdown
+```data:names type=array
+["Alice", "Bob", "Dana", "Eve"]
+^check=0
+---
+first: 0
+found: 2
+last: 3
+```
+````
+
+- Values in square brackets, comma-separated
+- Pointers: `^pointer-name=index`
+- Regions target numeric indices
+
+### Stack (`type=stack`)
+
+LIFO structure with push/pop operations.
+
+````markdown
+```data:call-stack type=stack
+[main, foo, bar, baz]
+^top=3
+```
+````
+
+- Vertical column, bottom = index 0
+- `^top=N` marks the stack pointer
+
+### Queue (`type=queue`)
+
+FIFO structure with enqueue/dequeue operations.
+
+````markdown
+```data:q type=queue
+[A, B, C, D, E]
+^front=0 ^rear=4
+```
+````
+
+- Horizontal row with front/rear pointers
+
+### Deque (`type=deque`)
+
+Double-ended queue with operations at both ends.
+
+````markdown
+```data:dq type=deque
+[A, B, C, D]
+^front=0 ^rear=3
+```
+````
+
+- Same as queue with bidirectional arrows
+
+### Ring Buffer (`type=ring-buffer`)
+
+Circular buffer with fixed capacity.
+
+````markdown
+```data:buf type=ring-buffer capacity=8
+[10, 20, 30, _, _, _, _, 80]
+^head=0 ^tail=2
+```
+````
+
+- Cells arranged in a circle
+- Active segment (head→tail) highlighted
+- Parameter: `capacity=N`
+
+</Accordion>
+
+<Accordion title="Chain Structures">
+
+### Linked List (`type=linked-list`)
+
+Singly-linked nodes with next pointers.
+
+````markdown
+```data:chain type=linked-list
+(head Alice) -> (n2 Bob) -> (n3 Dana) -> null
+---
+first: head
+second: n2
+```
+````
+
+- Nodes: `(id value)`
+- Links: `->`
+- Terminus: `-> null`
+- Blank line separates disconnected groups
+
+### Doubly Linked List (`type=doubly-linked-list`)
+
+Bidirectional links between nodes.
+
+````markdown
+```data:dll type=doubly-linked-list
+(a 10) <-> (b 20) <-> (c 30) -> null
+^head: a
+^tail: c
+```
+````
+
+- Same as linked-list but with `<->` edges
+
+### Skip List (`type=skip-list`)
+
+Multi-level linked list for fast search.
+
+````markdown
+```data:sl type=skip-list
+L3: (H) -> (6) -> (nil)
+L2: (H) -> (3) -> (6) -> (nil)
+L1: (H) -> (1) -> (3) -> (4) -> (6) -> (nil)
+L0: (H) -> (1) -> (2) -> (3) -> (4) -> (5) -> (6) -> (nil)
+```
+````
+
+- One line per level (highest first)
+- Same node at multiple levels vertically aligned
+
+</Accordion>
+
+<Accordion title="Tree Structures">
+
+### Tree (`type=tree`)
+
+N-ary tree with 15 specialized variants.
+
+**Indentation format (n-ary):**
+````markdown
+```data:dom type=tree
+(nav)
+  (a:Home)
+  (a:About)
+  (a:Contact)
+```
+````
+
+**Array format (binary, heap-style):**
+````markdown
+```data:heap type=tree variant=heap-min
+[1, 3, 5, 7, 9, 8, 6]
+```
+````
+
+**Annotated format (for AVL, red-black, etc.):**
+````markdown
+```data:rbt type=tree variant=red-black
+(7:B)
+  (3:R)
+    (1:B)
+    (5:B)
+  (10:R)
+    (8:B)
+    (15:B)
+```
+````
+
+**Variants:**
+- `generic` - Plain tree (default)
+- `bst` - Binary search tree
+- `avl` - AVL tree (shows balance factors)
+- `red-black` - Red-black tree (shows colors)
+- `heap-min` / `heap-max` - Min/max heap
+- `splay` - Splay tree
+- `treap` - Treap (tree + heap)
+- `aa` - AA tree
+- `segment` - Segment tree
+- `interval` - Interval tree
+- `fenwick` - Fenwick tree (binary indexed tree)
+- `merkle` - Merkle tree
+- `kd` - K-d tree
+- `rope` - Rope data structure
+
+**Syntax:**
+- `(id)` or `(id:annotation)` - annotation appears after colon
+- 2-space indent = one level deeper
+- First unindented node = root
+- `^name: nodeId` for pointers
+
+### B-Tree Family (`type=b-tree`)
+
+Multi-way search trees with wide nodes.
+
+````markdown
+```data:index type=b-tree order=3
+(root: 10, 20)
+  (a: 3, 5, 8)
+  (b: 12, 15)
+  (c: 25, 30, 40)
+```
+````
+
+**Variants:**
+- `b-tree` - Standard B-tree (default)
+- `b-plus-tree` - B+ tree with leaf links
+- `2-3-tree` - 2-3 tree
+- `2-3-4-tree` - 2-3-4 tree
+
+**Parameters:**
+- `order=N` - Maximum keys per node
+- `variant=type` - Specific B-tree variant
+
+**Syntax:**
+- `(id: k1, k2, k3)` - Node with multiple keys
+- Indentation for parent-child relationships
+
+### Trie Family (`type=trie`)
+
+Prefix trees for string storage and search.
+
+````markdown
+```data:words type=trie
+()
+  (c)
+    (a)
+      (t*)
+      (r*)
+  (d)
+    (o)
+      (g*)
+```
+````
+
+**Variants:**
+- `trie` - Standard trie (default)
+- `radix-tree` - Compressed trie
+- `suffix-tree` - Suffix tree
+
+**Syntax:**
+- `*` suffix marks terminal nodes
+- Single-char for trie, multi-char for radix-tree
+
+### Fibonacci Heap (`type=fibonacci-heap`)
+
+Collection of min-heap-ordered trees.
+
+````markdown
+```data:fh type=fibonacci-heap
+tree1: (3) -> (7) -> (18) -> (24)
+tree2: (17) -> (30)
+tree3: (23) -> (26) -> (46)
+min: 3
+marked: 26
+```
+````
+
+- Multiple trees in a row
+- `min:` specifies minimum element
+- `marked:` comma-separated marked nodes
+
+</Accordion>
+
+<Accordion title="Hash Structures">
+
+### Hash Map (`type=hash-map`)
+
+Hash table with chaining for collision resolution.
+
+````markdown
+```data:phonebook type=hash-map
+0: (alice 555-1234) -> (bob 555-5678)
+1:
+2: (charlie 555-9012)
+3:
+```
+````
+
+- Vertical bucket column on left
+- Horizontal chains extend right
+- `N:` = bucket index
+- `(id value)` = chain nodes
+
+### Bit Array (`type=bit-array`)
+
+Compact bit storage for probabilistic structures.
+
+````markdown
+```data:bf type=bit-array variant=bloom-filter
+[0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]
+h1: 1, 4, 10
+h2: 6, 13
+```
+````
+
+**Variants:**
+- `bloom-filter` - Bloom filter (default)
+- `cuckoo-filter` - Cuckoo filter
+- `count-min-sketch` - Count-min sketch
+- `hyperloglog` - HyperLogLog
+
+**Parameters:**
+- `rows=N` - Number of rows (for count-min sketch)
+
+**Syntax:**
+- Row of bits: `[0, 1, 0, ...]`
+- Hash highlights: `hashName: idx1, idx2, ...`
+
+</Accordion>
+
+<Accordion title="Graph Structures">
+
+### Graph (`type=graph`)
+
+General graph with multiple layout algorithms.
+
+````markdown
+```data:network type=graph layout=force
+A -> B, C: 5
+B -- D
+C -> D: 3
+---
+entry: A
+exits: C, D
+```
+````
+
+**Layouts:**
+- `ring` - Circular layout (default)
+- `force` - Force-directed layout
+- `tree` - Hierarchical tree layout
+- `grid` - Grid-based layout
+- `bipartite` - Two-column bipartite layout
+
+**Syntax:**
+- Directed: `->`
+- Undirected: `--`
+- Weights: `: N`
+- Comma-separated targets
+
+</Accordion>
+
+<Accordion title="Matrix & Arrays">
+
+### Matrix (`type=matrix`)
+
+2D grid with row/column headers.
+
+````markdown
+```data:adj type=matrix
+    A  B  C  D
+A [ 0, 1, 0, 1 ]
+B [ 1, 0, 1, 0 ]
+C [ 0, 1, 0, 1 ]
+D [ 1, 0, 1, 0 ]
+```
+````
+
+- First line = column labels
+- Data rows: `Label [ values ]`
+
+</Accordion>
+
+<Accordion title="Composite Structures">
+
+### Union-Find (`type=union-find`)
+
+Disjoint set union with path compression.
+
+````markdown
+```data:uf type=union-find
+elements: [A, B, C, D, E, F]
+parent:   [0, 0, 1, 3, 3, 4]
+rank:     [2, 1, 0, 1, 0, 0]
+```
+````
+
+- Three arrays: elements, parent indices, ranks
+- Dual view: array on top, forest below
+
+### LSM Tree (`type=lsm-tree`)
+
+Log-structured merge tree with levels.
+
+````markdown
+```data:lsm type=lsm-tree
+memtable: [5, 12, 3, 8]
+L0: [1, 4, 7] [2, 6, 9]
+L1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+```
+````
+
+- Vertical stack: memtable at top, levels below
+- Multiple runs per level (separated by spaces)
+
+</Accordion>
+
+## Regions
+
+Regions target specific elements by ID:
+
+```
+first-node: head
+path: a, b, c
+subtree: root, left-child, right-child
+```
+
+For arrays, use numeric indices:
+
+```
+first: 0
+middle: 3-5
+last: 9
+```
+
+## Triggers
+
+Data structures support rich animation triggers:
+
+- `{{focus: region}}` - Highlight specific nodes (others dim)
+- `{{pulse: region}}` - Brief emphasis animation
+- `{{flow: path}}` - Animated flow through edges (looping)
+- `{{trace: path}}` - Highlight a path through the structure
+- `{{draw: edges}}` - One-shot edge drawing animation
+- `{{pan: region}}` - Center viewport on specific nodes
+- `{{annotate: region "text"}}` - Floating labels on nodes
+
+## Real Example
+
+````markdown
+# Binary Search Tree Insertion
+
+{{show: tree-1}} We start with an empty tree. {{show: tree-2}} Inserting 5 creates the root. {{transform: tree-2->tree-3}} Adding 3 goes left since it's smaller. {{focus: right-subtree}} Now 7 goes to the right. {{pulse: new-node}} The tree maintains the BST property.
+
+```data:tree-1 type=tree variant=bst
+```
+
+```data:tree-2 type=tree variant=bst
+(5)
+---
+root: 5
+```
+
+```data:tree-3 type=tree variant=bst
+(5)
+  (3)
+  (7)
+---
+root: 5
+left-child: 3
+right-child: 7
+right-subtree: 7
+new-node: 7
+```
+````

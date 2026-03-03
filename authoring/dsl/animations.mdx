@@ -1,0 +1,283 @@
+---
+title: Animations
+description: Animation effects, durations, and easing functions for triggers
+---
+
+Animation tokens trail the target in `show`, `hide`, and `clear` triggers. Order doesn't matter. Unknown tokens are silently ignored.
+
+```markdown
+{{show: hash-fn slide 0.5s ease-out}}
+         ^target ^effect ^dur  ^easing
+```
+
+## Effects
+
+Animation effects control how blocks enter and exit the stage.
+
+| Effect | Enter Behavior | Exit Behavior | Best For |
+|--------|----------------|---------------|----------|
+| `fade` | Opacity 0→1 | Opacity 1→0 | General purpose (default) |
+| `slide` | From right | To left | Progression, new concepts |
+| `slide-up` | From bottom | To top | Results, conclusions |
+| `grow` | Scale from center | Scale to center | Focal elements, data structures |
+| `typewriter` | Lines appear sequentially | Fade out | First code reveals |
+| `none` | Instant | Instant | Reference material, no ceremony |
+
+### Effect Selection Guide
+
+**First code reveal:**
+```markdown
+{{show: hash-fn typewriter 2s linear}} Here's our hash function.
+```
+
+**New concept replaces old:**
+```markdown
+{{show: solution slide 0.3s}} Here's a better approach.
+```
+
+**Result or conclusion:**
+```markdown
+{{show: result slide-up 0.3s}} And here's the final output.
+```
+
+**Focal element appearing (diagram, data structure):**
+```markdown
+{{show: tree grow 0.5s spring}} This binary search tree...
+```
+
+**Preview alongside code:**
+```markdown
+{{split}} {{show: code slide 0.3s}} {{show: preview slide 0.5s spring}}
+```
+
+**Reference material (no ceremony):**
+```markdown
+{{show: api-table none}} Here's the complete reference.
+```
+
+**Hiding something:**
+```markdown
+{{hide: old-code fade 0.3s}} Let's remove the previous version.
+```
+
+---
+
+## Duration
+
+Duration specifies how long the animation takes. Supports seconds (`s`) or milliseconds (`ms`).
+
+| Duration | Milliseconds | Use Case |
+|----------|--------------|----------|
+| `0.15s` | 150ms | Micro-interactions |
+| `0.3s` | 300ms | **Default** — standard content transitions |
+| `0.5s` | 500ms | Deliberate, emphasized reveals |
+| `1s` | 1000ms | Slow, dramatic reveals |
+| `1.5s` | 1500ms | Typewriter, moderate speed |
+| `2s` | 2000ms | Typewriter, slow/detailed |
+| `300ms` | 300ms | Explicit milliseconds (equivalent to `0.3s`) |
+
+### Duration Guidelines
+
+**Micro-interactions:**
+- Focus shifts, annotations: no explicit duration — these are instant state changes
+
+**Content transitions (show/hide):**
+- 0.3-0.5s — fast enough to not feel sluggish, slow enough to register
+
+**Typewriter reveals:**
+- Formula: `duration = lines * 0.1s`
+  - 10 lines → 1s
+  - 15 lines → 1.5s  
+  - 20 lines → 2s
+- Don't go faster than 50ms/line (too glitchy) or slower than 150ms/line (too tedious)
+
+**Scene clears:**
+- Use the default. Don't override clear duration unless you have a specific reason.
+
+### Performance Rule
+
+**Never exceed 400ms for product UI.** This is Emil Kowalski's interaction rule: interactions should complete in 150-250ms, never exceed 400ms. Applied to Handhold: show/hide/clear should be under 500ms. Only typewriter (a deliberate slow reveal) goes longer.
+
+---
+
+## Easing
+
+Easing functions control the acceleration curve of animations.
+
+| Easing | Description | Use When |
+|--------|-------------|----------|
+| `ease-out` | Fast start, gentle stop | **Elements entering (default)** |
+| `ease-in-out` | Gentle start and stop | Elements moving on screen |
+| `spring` | Physics-based with overshoot | Playful, snappy, data structures |
+| `linear` | Constant speed | Typewriter, mechanical processes |
+| `reveal` | Smooth cinematic reveal | First reveals, dramatic moments |
+| `emphasis` | Punchy overshoot | Drawing attention, key concepts |
+| `handoff` | Calm handoff between scenes | Scene transitions, topic changes |
+
+### Easing Selection Guide
+
+**Default (elements entering):**
+```markdown
+{{show: diagram fade 0.3s ease-out}}
+```
+
+**Elements moving on screen:**
+```markdown
+{{show: comparison slide 0.5s ease-in-out}}
+```
+
+**Playful, snappy entrance (data structures):**
+```markdown
+{{show: tree grow 0.5s spring}}
+```
+
+**Typewriter (mechanical, constant speed):**
+```markdown
+{{show: code typewriter 2s linear}}
+```
+
+**First reveal (cinematic):**
+```markdown
+{{show: intro-diagram fade 0.5s reveal}}
+```
+
+**Drawing attention (punchy):**
+```markdown
+{{show: key-insight grow 0.4s emphasis}}
+```
+
+**Scene transition (calm handoff):**
+```markdown
+{{clear: fade 0.5s handoff}}
+```
+
+---
+
+## Defaults
+
+If no animation tokens are provided:
+- **Effect:** `fade`
+- **Duration:** `0.3s` (300ms)
+- **Easing:** `ease-out`
+
+If only some tokens are provided, missing ones get defaults:
+- `{{show: block slide}}` → `slide`, `0.3s`, `ease-out`
+- `{{show: block 0.5s}}` → `fade`, `0.5s`, `ease-out`
+- `{{show: block spring}}` → `fade`, `0.3s`, `spring`
+
+---
+
+## Complete Examples
+
+### Typewriter Code Reveal
+
+```markdown
+{{show: dijkstra typewriter 2s linear}} Here's Dijkstra's algorithm in code.
+
+{{focus: init}} {{zoom: 1.3x}} Set every distance to infinity except the start.
+```
+
+**Why this works:**
+- `typewriter 2s linear` — 20 lines at 2s = 100ms/line. Mechanical, constant speed.
+- Narration starts DURING the typewriter. The audience reads ahead naturally.
+
+---
+
+### Data Structure Entrance
+
+```markdown
+{{show: city-map grow 0.5s spring}} Six cities, connected by weighted roads.
+```
+
+**Why this works:**
+- `grow` + `spring` — the graph snaps in playfully with a slight overshoot.
+- Perfect for the first thing on screen to set an engaging tone.
+
+---
+
+### Slide Progression
+
+```markdown
+{{show: problem slide 0.3s}} Here's the naive approach.
+
+{{hide: problem slide 0.3s}} {{show: solution slide 0.3s}} And here's the optimized version.
+```
+
+**Why this works:**
+- `slide` creates a left-to-right flow, signaling progression.
+- Consistent 0.3s timing creates a steady rhythm.
+
+---
+
+### Split Panel Entry
+
+```markdown
+{{split}} {{show: source slide 0.3s}} {{show: preview slide 0.5s spring}} Here's the code and what it produces.
+```
+
+**Why this works:**
+- Left panel (code) enters first with a standard slide.
+- Right panel (preview) enters slightly delayed with a playful spring bounce.
+- Staggered timing guides the eye left→right.
+
+---
+
+### Result Conclusion
+
+```markdown
+{{show: final-result slide-up 0.3s ease-out}} And that's the answer.
+```
+
+**Why this works:**
+- `slide-up` feels like a conclusion rising into view.
+- Reinforces the "here's the result" moment.
+
+---
+
+### No-Ceremony Reference
+
+```markdown
+{{show: api-docs none}} Here's the full API reference for later.
+```
+
+**Why this works:**
+- `none` = instant. No animation ceremony for supporting material.
+- Keeps focus on the narration, not the visual transition.
+
+---
+
+## TypeScript Definition
+
+From `src/types/lesson.ts`:
+
+```typescript
+export type AnimationEffect =
+  | "fade"
+  | "slide"
+  | "slide-up"
+  | "grow"
+  | "typewriter"
+  | "none";
+
+export type EasingKind =
+  | "ease-out"
+  | "ease-in-out"
+  | "spring"
+  | "linear"
+  | "reveal"
+  | "emphasis"
+  | "handoff";
+
+export type AnimationOverride =
+  | { readonly kind: "default" }
+  | {
+      readonly kind: "custom";
+      readonly effect: AnimationEffect;
+      readonly durationS: number;
+      readonly easing: EasingKind;
+    };
+
+export const DEFAULT_ANIMATION: AnimationOverride = {
+  kind: "default",
+} as const;
+```

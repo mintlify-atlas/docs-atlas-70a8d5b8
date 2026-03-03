@@ -1,0 +1,307 @@
+---
+title: Contributing Guidelines
+description: How to contribute code, documentation, and courses to Handhold
+---
+
+We welcome contributions to Handhold! Whether you're fixing bugs, adding features, improving documentation, or creating courses, this guide will help you get started.
+
+## Ways to Contribute
+
+- **Bug fixes**: Fix issues reported in GitHub Issues
+- **Features**: Add new visualization types, UI improvements, or backend capabilities
+- **Documentation**: Improve setup guides, API docs, or authoring references
+- **Courses**: Create new programming courses using the Handhold DSL
+- **Testing**: Write tests for existing functionality
+- **Performance**: Optimize parsing, rendering, or build times
+
+## Getting Started
+
+<Steps>
+  <Step title="Fork and clone">
+    Fork the repository on GitHub, then clone your fork:
+
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/handhold.git
+    cd handhold
+    ```
+  </Step>
+
+  <Step title="Set up development environment">
+    Follow the [Development Setup](/development/setup) guide to install dependencies and verify the build.
+  </Step>
+
+  <Step title="Create a feature branch">
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+
+    Use descriptive branch names:
+    - `fix/crash-on-empty-lesson`
+    - `feat/add-stack-visualization`
+    - `docs/improve-authoring-guide`
+  </Step>
+
+  <Step title="Make your changes">
+    Edit code, add tests, and verify everything works:
+
+    ```bash
+    bun tauri dev
+    ```
+  </Step>
+
+  <Step title="Commit with clear messages">
+    Use conventional commit format:
+
+    ```bash
+    git commit -m "feat: add stack visualization primitive"
+    git commit -m "fix: prevent crash when lesson has no steps"
+    git commit -m "docs: add parser architecture diagram"
+    ```
+
+    Commit types:
+    - `feat`: New feature
+    - `fix`: Bug fix
+    - `docs`: Documentation change
+    - `refactor`: Code refactoring (no behavior change)
+    - `perf`: Performance improvement
+    - `test`: Add or update tests
+    - `chore`: Build system, dependencies, tooling
+  </Step>
+
+  <Step title="Push and create a pull request">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+
+    Go to GitHub and open a pull request against the `main` branch.
+  </Step>
+</Steps>
+
+## Pull Request Guidelines
+
+### PR Title
+
+Use the same conventional commit format:
+
+```
+feat: add stack visualization primitive
+fix: prevent crash when lesson has no steps
+docs: add parser architecture diagram
+```
+
+### PR Description
+
+Include:
+
+1. **What changed**: Brief summary of the changes
+2. **Why**: The motivation or problem being solved
+3. **How**: High-level explanation of the approach
+4. **Testing**: How you verified the changes work
+5. **Screenshots**: If UI changes, include before/after screenshots
+
+Example:
+
+```markdown
+## What
+Adds a new `stack` visualization type to the data primitive.
+
+## Why
+Many algorithms use stacks, but the current data visualizations only support arrays and linked lists.
+
+## How
+- Added `StackLayout` component in `src/data/layouts/`
+- Extended parser to recognize `stack` type in data blocks
+- Added animation support for push/pop operations
+
+## Testing
+- Created a test lesson with stack operations
+- Verified animations play correctly
+- Tested with empty stack edge case
+
+## Screenshots
+[Include screenshot of stack visualization]
+```
+
+### Code Review Process
+
+1. Maintainers will review your PR within a few days
+2. Address feedback by pushing new commits
+3. Once approved, a maintainer will merge your PR
+
+<Note>
+Please be patient and respectful during code review. Maintainers may request changes to ensure quality and consistency.
+</Note>
+
+## Code Style
+
+### TypeScript/React
+
+- Use TypeScript strict mode (enabled by default)
+- Prefer functional components and hooks
+- Use `readonly` for props and immutable data
+- Avoid `any` types; use `unknown` or explicit types
+- Run Prettier before committing (not yet configured, but recommended)
+
+Example:
+
+```typescript
+type Props = {
+  readonly title: string;
+  readonly onComplete: () => void;
+};
+
+export function Component({ title, onComplete }: Props) {
+  // ...
+}
+```
+
+### Rust
+
+- Follow Rust standard style (`cargo fmt`)
+- Use descriptive variable names
+- Prefer `Result<T, E>` over panics for recoverable errors
+- Document public APIs with `///` doc comments
+
+Example:
+
+```rust
+/// Reads a file from the filesystem and returns its contents.
+///
+/// # Errors
+/// Returns an error if the file does not exist or cannot be read.
+#[tauri::command]
+pub fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(path)
+        .map_err(|e| e.to_string())
+}
+```
+
+## Testing
+
+Currently, Handhold does not have automated tests. Adding tests is a highly valued contribution!
+
+Ideas for testing:
+
+- **Parser tests**: Verify markdown parsing produces correct IR
+- **Trigger tests**: Ensure trigger syntax is parsed correctly
+- **Data layout tests**: Validate layout algorithms
+- **Backend tests**: Test Tauri commands in isolation
+
+## Documentation
+
+When adding features, update the relevant documentation:
+
+- **README.md**: User-facing setup and installation
+- **docs/authoring-guide.md**: Course authoring reference
+- **This docs site**: Development guides (you're reading one!)
+
+## Creating Courses
+
+To contribute a course:
+
+1. Write the course as a markdown file using the [authoring DSL](https://github.com/dutch-casa/handhold/blob/main/docs/authoring-guide.md)
+2. Test it in Handhold to ensure all triggers and visualizations work
+3. Submit the course as a separate repository or open an issue to discuss inclusion
+
+Course contributions are handled separately from code contributions.
+
+## Reporting Bugs
+
+If you find a bug:
+
+1. Check if it's already reported in [GitHub Issues](https://github.com/dutch-casa/handhold/issues)
+2. If not, open a new issue with:
+   - **Title**: Short description of the bug
+   - **Description**: Steps to reproduce, expected behavior, actual behavior
+   - **Environment**: OS, Handhold version, relevant setup details
+   - **Screenshots/logs**: If applicable
+
+Example:
+
+```markdown
+**Bug**: App crashes when opening a lesson with no narration blocks
+
+**Steps to reproduce**:
+1. Create a lesson with only visualization blocks
+2. Open the lesson in Handhold
+3. Click play
+
+**Expected**: App plays the lesson or shows an error
+**Actual**: App crashes with SIGSEGV
+
+**Environment**: macOS 14.3, Handhold v0.2.11
+```
+
+## Requesting Features
+
+To request a feature:
+
+1. Open a GitHub Issue with the `enhancement` label
+2. Describe the feature and why it's useful
+3. Provide examples or mockups if applicable
+
+Example:
+
+```markdown
+**Feature**: Add support for custom color themes
+
+**Why**: Users want to customize the appearance of code blocks and diagrams to match their preferred color scheme.
+
+**Details**:
+- Allow users to define color palettes in settings
+- Apply palettes to syntax highlighting, diagrams, and UI elements
+- Provide a few built-in themes (dark, light, high contrast)
+```
+
+## License
+
+By contributing to Handhold, you agree that your contributions will be licensed under the [AGPL-3.0 license](https://github.com/dutch-casa/handhold/blob/main/LICENSE).
+
+The AGPL requires that any modifications to Handhold must be open-sourced if the modified version is distributed or run as a network service.
+
+## Code of Conduct
+
+Be respectful and constructive in all interactions. We aim to foster an inclusive and welcoming community.
+
+Specific expectations:
+
+- Be patient with questions from newcomers
+- Provide constructive feedback during code review
+- Respect differing viewpoints and experiences
+- Accept responsibility and apologize for mistakes
+
+Violations may result in temporary or permanent bans from the project.
+
+## Contact
+
+For questions or discussions:
+
+- **GitHub Issues**: For bug reports and feature requests
+- **GitHub Discussions**: For general questions and ideas (if enabled)
+- **Email**: Reach out to the maintainer at dutch@dutchcaz.com
+
+## Recognition
+
+Contributors are recognized in:
+
+- GitHub's contributor graph
+- Release notes for significant features
+
+Thank you for helping improve Handhold!
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup" icon="gear" href="/development/setup">
+    Set up your development environment
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Understand the codebase structure
+  </Card>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Explore the React frontend
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Dive into the Rust backend
+  </Card>
+</CardGroup>

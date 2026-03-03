@@ -1,0 +1,527 @@
+---
+title: Regions
+description: Named sub-elements within visualization blocks for precise focus and animation control
+---
+
+Regions are named sub-elements within a block. They are the bridge between triggers and visual state.
+
+## Definition
+
+Regions are defined below a `---` separator at the bottom of a code fence:
+
+````markdown
+```code:hash-fn lang=ts
+function hash(key: string): number {
+  let h = 0
+  for (const ch of key) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0
+  }
+  return h
+}
+---
+signature: 1
+init: 2
+loop: 3-5
+return-val: 7
+```
+````
+
+**Format:**
+```
+content here
+---
+region-name: target-spec
+another-region: target-spec
+```
+
+## Target Format by Block Type
+
+Each block type has its own region target format:
+
+| Block Type | Format | Examples |
+|------------|--------|----------|
+| **Code** | Line numbers, ranges | `2`, `3-5`, `1, 4-6, 9` |
+| **Data** | Node/element IDs | `head`, `n1, n2` |
+| **Diagram** | Node IDs | `api`, `db, cache` |
+| **Math** | Expression IDs | `expr-0`, `expr-1` |
+| **Chart** | X-axis labels | `Q1`, `Feb` |
+| **Preview** | (varies) | Depends on content |
+
+### Code Block Regions
+
+**Line numbers:**
+```
+signature: 1
+return-val: 7
+```
+
+**Ranges:**
+```
+loop: 3-5
+imports: 1-4
+```
+
+**Multiple ranges:**
+```
+error-handling: 1, 4-6, 9
+setup-teardown: 2-3, 15-17
+```
+
+**Complete example:**
+````markdown
+```code:dijkstra lang=ts
+function dijkstra(graph: Graph, start: string) {
+  const dist = new Map<string, number>()
+  for (const node of graph.nodes) {
+    dist.set(node, node === start ? 0 : Infinity)
+  }
+  const visited = new Set<string>()
+  
+  while (visited.size < graph.nodes.length) {
+    const current = pickMinUnvisited(dist, visited)
+    if (!current) break
+    visited.add(current)
+    
+    for (const neighbor of graph.neighbors(current)) {
+      const alt = dist.get(current)! + graph.weight(current, neighbor)
+      if (alt < dist.get(neighbor)!) {
+        dist.set(neighbor, alt)
+      }
+    }
+  }
+  return dist
+}
+---
+signature: 1
+init: 2-5
+visited-set: 6
+pick: 9-11
+relax: 13-17
+check: 15
+update: 16
+return: 20
+```
+````
+
+### Data Block Regions
+
+Target node/element IDs defined in the data structure.
+
+**Array:**
+````markdown
+```data:names type=array
+["Alice", "Bob", "Dana", "Eve"]
+^check=0
+---
+first: 0
+last: 3
+middle: 1, 2
+```
+````
+
+**Linked List:**
+````markdown
+```data:chain type=linked-list
+(head Alice) -> (n2 Bob) -> (n3 Charlie) -> null
+---
+first: head
+second: n2
+tail: n3
+middle-nodes: n2, n3
+```
+````
+
+**Tree:**
+````markdown
+```data:bst type=tree variant=bst
+(7)
+  (3)
+    (1)
+    (5)
+  (10)
+    (8)
+    (15)
+---
+root: 7
+left-subtree: 3, 1, 5
+right-subtree: 10, 8, 15
+leaf-parent: 3
+```
+````
+
+**Graph:**
+````markdown
+```data:network type=graph layout=force
+A -> B, C: 5
+B -- D
+C -> D: 3
+---
+entry: A
+exits: C, D
+path-a-b-d: A, B, D
+```
+````
+
+### Diagram Block Regions
+
+Target node IDs from the diagram definition.
+
+````markdown
+```diagram:system
+client [client]
+gw [api-gateway]
+api [service]
+db [database]
+cache [cache]
+
+client --> gw
+gw --> api
+api --> db
+api --reads--> cache
+
+{Backend: gw, api, db, cache}
+---
+storage: db
+fast-path: cache
+gateway: gw
+backend: gw, api, db, cache
+```
+````
+
+### Math Block Regions
+
+Target auto-generated expression IDs (`expr-0`, `expr-1`, ...).
+
+````markdown
+```math:formulas
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+
+y = mx + b
+
+E = mc^2
+---
+quadratic: expr-0
+linear: expr-1
+energy: expr-2
+```
+````
+
+### Chart Block Regions
+
+Target X-axis labels from the chart data.
+
+````markdown
+```chart:quarterly type=bar
+Q1: 100
+Q2: 150
+Q3: 120
+Q4: 200
+---
+growth: Q2, Q3
+peak: Q2
+first-half: Q1, Q2
+```
+````
+
+## Naming Conventions
+
+### Semantic Names
+
+Region names should describe the **concept**, not the position:
+
+**Good:**
+```
+signature: 1
+init: 2-3
+loop: 4-8
+return-val: 10
+```
+
+**Bad:**
+```
+line-1: 1
+top-part: 2-3
+middle-section: 4-8
+the-important-bit: 10
+```
+
+### Naming Style
+
+- **Lowercase with hyphens:** `return-val`, `check-condition`, `hash-step`
+- **Descriptive:** `signature`, `loop-body`, `error-handling`
+- **Never positional:** Not `line-3`, `top-part`, `section-2`
+
+### Concept-Based Examples
+
+**Algorithm code:**
+```
+setup: 1-3
+main-loop: 5-15
+greedy-choice: 7-9
+relaxation: 11-13
+cleanup: 17-19
+```
+
+**Data structure:**
+```
+root: root-id
+left-subtree: node-1, node-2, node-3
+right-subtree: node-4, node-5
+unbalanced: node-6
+```
+
+**System diagram:**
+```
+entry-point: client
+gateway-layer: api-gw, load-balancer
+data-layer: db, cache
+request-path: client, api-gw, service, db
+```
+
+## Usage in Triggers
+
+Regions are referenced by name in triggers:
+
+### Focus
+
+```markdown
+{{focus: signature}} It takes a string and returns a number.
+{{focus: loop}} The loop processes each character.
+{{focus: return-val}} Finally, return the hash value.
+```
+
+### Pulse
+
+```markdown
+{{pulse: swap-pair}} Compare parent and child.
+```
+
+### Annotate
+
+```markdown
+{{annotate: greedy-choice "Key decision"}} This is where we pick the minimum.
+```
+
+### Zoom
+
+```markdown
+{{zoom: loop 1.3x}} Let's zoom in on the loop body.
+```
+
+### Flow
+
+```markdown
+{{flow: request-path}} The request flows from client to gateway to service.
+```
+
+### Trace
+
+```markdown
+{{trace: bfs-path}} Watch BFS explore the graph.
+```
+
+### Draw
+
+```markdown
+{{draw: edge-a-b}} First, connect A to B.
+```
+
+### Pan
+
+```markdown
+{{pan: far-cluster}} Now look at this distant cluster.
+```
+
+## Edge Regions (Paths)
+
+For graph-like visualizations (graphs, trees, diagrams), regions can target paths between nodes.
+
+### Format
+
+Paths are comma-separated node IDs. The renderer connects them with edges.
+
+**Graph path:**
+```
+path-a-b-d: A, B, D
+shortest-path: A, C, B, D, E, F
+```
+
+**Tree path (root to leaf):**
+```
+find-path: root, left-child, left-left-child
+```
+
+**Diagram flow:**
+```
+request-flow: client, gateway, service, database
+```
+
+### Usage with Flow/Trace/Draw
+
+**Flow (looping animation):**
+```markdown
+{{flow: request-flow}} The request flows through the system.
+```
+
+**Trace (highlighted path):**
+```markdown
+{{trace: shortest-path}} This is the shortest path.
+```
+
+**Draw (one-shot reveal):**
+```markdown
+{{draw: edge-a-b}} Connect A to B.
+{{draw: edge-b-c}} Then B to C.
+```
+
+## Multi-Element Regions
+
+Regions can target multiple elements for group operations.
+
+### Code (multiple line ranges):
+
+```
+error-handling: 1, 4-6, 9
+setup-and-cleanup: 2-3, 15-17
+```
+
+### Data (multiple nodes):
+
+```
+left-subtree: node-1, node-2, node-3
+leaf-nodes: node-4, node-5, node-6
+```
+
+### Diagram (multiple services):
+
+```
+backend: api, db, cache
+frontend: web-client, mobile-client
+```
+
+## Region Best Practices
+
+### 1. Define regions for every key concept
+
+**Before (no regions):**
+````markdown
+```code:hash lang=ts
+function hash(key: string): number {
+  let h = 0
+  for (const ch of key) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0
+  }
+  return h
+}
+```
+````
+
+You can show the block, but you can't focus on specific parts.
+
+**After (with regions):**
+````markdown
+```code:hash lang=ts
+function hash(key: string): number {
+  let h = 0
+  for (const ch of key) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0
+  }
+  return h
+}
+---
+signature: 1
+init: 2
+loop: 3-5
+multiply-add: 4
+return-val: 7
+```
+````
+
+Now you can walk through each concept with focus/zoom/annotate.
+
+### 2. Match region names to narration vocabulary
+
+If your narration says "the initialization step," name the region `init`, not `setup` or `start`.
+
+If you say "the greedy choice," name it `greedy-choice`, not `decision` or `pick-step`.
+
+**Consistency makes authoring faster** — you don't have to remember mappings.
+
+### 3. Granularity matches explanation depth
+
+If you only mention "the loop" once, one region is enough:
+
+```
+loop: 3-8
+```
+
+If you explain loop setup, body, and increment separately, split them:
+
+```
+loop-init: 3
+loop-body: 4-6
+loop-increment: 7
+```
+
+### 4. Use multi-element regions for comparisons
+
+**Comparing left vs right subtrees:**
+```
+left-subtree: node-1, node-2, node-3
+right-subtree: node-4, node-5, node-6
+```
+
+**Narration:**
+```markdown
+{{focus: left-subtree}} The left subtree is balanced.
+{{focus: right-subtree}} But the right subtree is not.
+```
+
+### 5. Keep path regions semantic
+
+**Good:**
+```
+shortest-path: A, C, B, D, E, F
+greedy-path: A, B, D, F
+```
+
+**Bad:**
+```
+path-1: A, C, B, D, E, F
+path-2: A, B, D, F
+```
+
+Semantic names make the lesson readable.
+
+## TypeScript Definition
+
+From `src/types/lesson.ts`:
+
+```typescript
+export type RegionDef = {
+  readonly name: string;
+  readonly target: string;
+};
+```
+
+**Every block type includes a `regions` field:**
+
+```typescript
+export type CodeState = {
+  readonly kind: "code";
+  readonly name: string;
+  readonly lang: string;
+  readonly fileName: string;
+  readonly content: string;
+  readonly focus: readonly FocusRange[];
+  readonly annotations: readonly CodeAnnotation[];
+  readonly regions: readonly RegionDef[];  // <-- here
+};
+
+export type DataState = {
+  readonly kind: "data";
+  readonly name: string;
+  readonly data: /* ... */;
+  readonly regions: readonly RegionDef[];  // <-- here
+};
+```

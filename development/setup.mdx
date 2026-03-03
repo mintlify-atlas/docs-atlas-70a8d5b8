@@ -1,0 +1,240 @@
+---
+title: Development Setup
+description: Set up your local development environment to build Handhold from source
+---
+
+This guide walks you through setting up Handhold for local development. The setup process installs all required dependencies and prepares your environment for building the application.
+
+## Prerequisites
+
+Before you begin, ensure you have the following tools installed:
+
+| Dependency | Version | Purpose |
+|---|---|---|
+| [Rust](https://www.rust-lang.org/tools/install) | stable | Tauri backend |
+| [Bun](https://bun.sh/) | >= 1.0 | Frontend dependencies and Vite |
+| [Tauri CLI](https://v2.tauri.app/start/create-project/) | >= 2.0 | Build tooling |
+| [Podman](https://podman.io/docs/installation) or [Docker](https://docs.docker.com/get-docker/) | any | Lab services (optional) |
+
+### Install Rust
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+Restart your terminal after installation, then verify:
+
+```bash
+rustc --version
+```
+
+### Install Bun
+
+<CodeGroup>
+
+```bash macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+```
+
+```powershell Windows
+powershell -c "irm bun.sh/install.ps1|iex"
+```
+
+</CodeGroup>
+
+Verify the installation:
+
+```bash
+bun --version
+```
+
+### Install Tauri CLI
+
+```bash
+cargo install tauri-cli --version "^2"
+```
+
+### Platform-Specific Dependencies
+
+<Tabs>
+  <Tab title="macOS">
+    Install Xcode Command Line Tools:
+
+    ```bash
+    xcode-select --install
+    ```
+  </Tab>
+  <Tab title="Linux">
+    For Debian/Ubuntu:
+
+    ```bash
+    sudo apt-get install -y \
+      libwebkit2gtk-4.1-dev \
+      libappindicator3-dev \
+      librsvg2-dev \
+      patchelf \
+      build-essential \
+      curl \
+      wget \
+      file \
+      libssl-dev \
+      libgtk-3-dev
+    ```
+
+    For other distributions, see [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux).
+  </Tab>
+  <Tab title="Windows">
+    Install:
+    - [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (included in Windows 11, manual install for Windows 10)
+    - [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+  </Tab>
+</Tabs>
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/dutch-casa/handhold.git
+cd handhold
+```
+
+## Automated Setup
+
+The quickest way to set up your development environment is using the automated installer with the `--dev` flag:
+
+<Steps>
+  <Step title="Run the dev installer">
+    ```bash
+    bash scripts/install-handhold.sh --dev
+    ```
+
+    This script:
+    - Verifies all prerequisites (Rust, Bun, Tauri CLI)
+    - Checks platform-specific build dependencies
+    - Installs frontend packages via Bun
+    - Downloads the TTS sidecar binary
+    - Verifies the Rust build compiles
+  </Step>
+
+  <Step title="Wait for completion">
+    The script will output progress as it checks dependencies and installs packages. If any prerequisites are missing, it will provide instructions for installing them.
+  </Step>
+</Steps>
+
+## Manual Setup
+
+If you've already installed dependencies manually or prefer more control:
+
+<Steps>
+  <Step title="Install frontend dependencies">
+    ```bash
+    bun install
+    ```
+  </Step>
+
+  <Step title="Run the standalone setup script">
+    ```bash
+    bash scripts/install.sh
+    ```
+
+    This downloads the TTS sidecar and verifies the build environment.
+  </Step>
+</Steps>
+
+## TTS Sidecar Binary
+
+Handhold uses [Kokoro](https://github.com/hexgrad/kokoro) for text-to-speech synthesis. The `koko` binary must be built separately and placed in the correct location:
+
+```
+src-tauri/binaries/koko-<target-triple>
+```
+
+The install scripts handle downloading the pre-built binary for your platform. If the binary is missing, the scripts will notify you.
+
+<Note>
+The target triple depends on your platform:
+- macOS ARM: `aarch64-apple-darwin`
+- macOS Intel: `x86_64-apple-darwin`
+- Linux: `x86_64-unknown-linux-gnu`
+- Windows: `x86_64-pc-windows-msvc`
+</Note>
+
+## Verify Installation
+
+Confirm everything is set up correctly:
+
+```bash
+bun tauri dev
+```
+
+This launches the app in development mode with hot reload enabled. If the app opens successfully, your environment is ready.
+
+## Optional: Container Runtime for Labs
+
+To run interactive labs with service dependencies (Postgres, Redis, etc.), install either Podman or Docker:
+
+<CodeGroup>
+
+```bash Podman (macOS)
+brew install podman
+podman machine init
+podman machine start
+```
+
+```bash Docker (macOS)
+brew install --cask docker
+```
+
+```bash Podman (Linux)
+sudo apt-get install podman
+```
+
+```bash Docker (Linux)
+sudo apt-get install docker.io
+```
+
+</CodeGroup>
+
+<Note>
+Container runtimes are only required for labs that spin up services. Narrated lessons work without containers.
+</Note>
+
+## Troubleshooting
+
+### Rust compilation errors
+
+Ensure you're using the stable Rust toolchain:
+
+```bash
+rustup default stable
+rustup update
+```
+
+### Tauri build fails on Linux
+
+Double-check that all system dependencies are installed. The error messages usually indicate which library is missing.
+
+### Frontend build errors
+
+Clear the Bun cache and reinstall:
+
+```bash
+rm -rf node_modules bun.lockb
+bun install
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    Understand how Handhold is structured
+  </Card>
+  <Card title="Building" icon="hammer" href="/development/building">
+    Learn how to build and run the app
+  </Card>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Explore the React frontend architecture
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Dive into the Rust backend
+  </Card>
+</CardGroup>

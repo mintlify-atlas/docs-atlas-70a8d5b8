@@ -1,0 +1,600 @@
+---
+title: Presentation Engine
+description: How Handhold orchestrates narration, animations, and scene transitions
+---
+
+The presentation engine is the heart of Handhold's playback system. It synchronizes TTS audio, trigger execution, scene state transitions, and animations to create a cohesive learning experience.
+
+## Overview
+
+The presentation engine coordinates:
+
+1. **Audio playback**: TTS narration with word-level timing
+2. **Trigger execution**: Commands fire at word positions
+3. **Scene state management**: What's visible on stage
+4. **Animation scheduling**: Enter/exit effects for blocks
+5. **User controls**: Play, pause, seek, skip, playback rate
+
+**Location**: `src/presentation/`
+
+## Architecture
+
+```
+┌────────────────────────────────────┐
+│       Presentation Component           │
+└───────────────┬─────────────────────┘
+                │
+       ┌────────┼────────┐
+       │                │
+       ▼                ▼
+┌───────────┐     ┌──────────────┐
+│ Playback  │     │ State Store  │
+│   Hook    │────▶│   (Zustand)   │
+└──────┬────┘     └──────┬───────┘
+       │                │
+       ▼                ▼
+┌───────────┐     ┌──────────────┐
+│   TTS     │     │    Stage     │
+│ (Howler) │     │ (Renderer)  │
+└───────────┘     └──────────────┘
+```
+
+## Presentation Store
+
+**File**: `src/presentation/store.ts`
+
+A Zustand store holds all presentation state:
+
+```typescript
+type PresentationState = {
+  readonly lesson: ParsedLesson | null;
+  readonly steps: readonly LessonStep[];
+  readonly currentStepIndex: number;
+  readonly status: 'idle' | 'playing' | 'paused';
+  readonly playbackRate: number;
+  readonly currentWordIndex: number;
+  readonly sceneIndex: number;
+  readonly completedStepIds: ReadonlySet<string>;
+};
+```
+
+### Key State Fields
+
+- **`lesson`**: The parsed lesson (from parser)
+- **`currentStepIndex`**: Current step (chapter) being played
+- **`status`**: Playback state (idle, playing, paused)
+- **`playbackRate`**: Speed multiplier (0.5x, 1x, 1.5x, 2x)
+- **`currentWordIndex`**: Current word in narration (synced to audio)
+- **`sceneIndex`**: Current scene (frame) in the step's scene sequence
+- **`completedStepIds`**: Set of completed step IDs for progress tracking
+
+### Actions
+
+```typescript
+type PresentationActions = {
+  loadLesson: (opts: LoadLessonOpts) => void;
+  play: () => void;
+  pause: () => void;
+  togglePlayPause: () => void;
+  nextStep: () => void;
+  prevStep: () => void;
+  goToStep: (index: number) => void;
+  setWordIndex: (index: number) => void;
+  advanceScene: () => void;
+  setSceneIndex: (index: number) => void;
+  setPlaybackRate: (rate: number) => void;
+  markStepComplete: (stepId: string) => void;
+  reset: () => void;
+};
+```
+
+**Key actions**:
+
+- **`loadLesson`**: Initializes the store with a parsed lesson
+- **`play` / `pause`**: Control playback
+- **`setWordIndex`**: Called by audio player to sync word position
+- **`advanceScene`**: Transition to next scene (triggered by word index)
+
+## Playback Orchestration
+
+**File**: `src/presentation/use-playback.ts`
+
+The `usePlayback` hook manages audio playback and trigger execution.
+
+### Playback Flow
+
+<Steps>
+  <Step title="Load lesson">
+    When a lesson is loaded, `loadLesson()` is called with the parsed lesson and options:
+
+    ```typescript
+    usePresentationStore.getState().loadLesson({
+      lesson,
+      initialStepIndex: 0,
+      completedSlideIds: new Set(),
+      onStepChange: (index) => {},
+      onSlideComplete: (slideId) => {},
+      onLessonComplete: () => {},
+    });
+    ```
+  </Step>
+
+  <Step title="Prefetch TTS audio">
+    React Query prefetches TTS audio for all narration blocks:
+
+    ```typescript
+    usePrefetchAllAudio(lesson);
+    ```
+
+    This ensures smooth playback without waiting for synthesis.
+  </Step>
+
+  <Step title="User presses play">
+    The `play()` action is dispatched:
+
+    ```typescript
+    usePresentationStore.getState().play();
+    ```
+
+    Status changes to `'playing'`.
+  </Step>
+
+  <Step title="Fetch current narration audio">
+    The playback hook fetches TTS audio for the current step:
+
+    ```typescript
+    const { data } = useQuery({
+      queryKey: ['tts', narrationText],
+      queryFn: () => synthesize(narrationText),
+    });
+    ```
+
+    Returns:
+
+    ```typescript
+    {
+      audioBase64: string,
+      wordTimings: Array<{
+        word: string,
+        wordIndex: number,
+        startMs: number,
+        endMs: number,
+      }>,
+    }
+    ```
+  </Step>
+
+  <Step title="Play audio">
+    Audio is played using Howler.js:
+
+    ```typescript
+    const player = createAudioPlayer(audioBase64, {
+      onPlay: () => {},
+      onSeek: (position) => updateWordIndex(position),
+    });
+
+    player.play();
+    ```
+  </Step>
+
+  <Step title="Track word position">
+    A `requestAnimationFrame` loop polls the audio position and updates word index:
+
+    ```typescript
+    function updateWordIndex(positionMs: number) {
+      const wordIndex = findWordAtPosition(positionMs, wordTimings);
+      usePresentationStore.getState().setWordIndex(wordIndex);
+    }
+    ```
+  </Step>
+
+  <Step title="Execute triggers">
+    The event scheduler watches `currentWordIndex` and fires triggers:
+
+    ```typescript
+    useEffect(() => {
+      const trigger = getNextTrigger(currentWordIndex);
+      if (trigger) {
+        executeTrigger(trigger);
+      }
+    }, [currentWordIndex]);
+    ```
+  </Step>
+
+  <Step title="Update scene state">
+    Triggers update the scene state (visible blocks, focus, split mode, etc.):
+
+    ```typescript
+    function executeTrigger(trigger: TriggerVerb) {
+      switch (trigger.verb) {
+        case 'show':
+          addBlockToStage(trigger.target);
+          break;
+        case 'hide':
+          removeBlockFromStage(trigger.target);
+          break;
+        // ...
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Render stage">
+    The `Stage` component reads scene state from the store and renders blocks:
+
+    ```tsx
+    <Stage>
+      {sceneState.visible.map(blockName => (
+        <VisualizationBlock key={blockName} name={blockName} />
+      ))}
+    </Stage>
+    ```
+  </Step>
+
+  <Step title="Narration ends">
+    When audio completes, the playback hook auto-advances to the next step (if any):
+
+    ```typescript
+    player.on('end', () => {
+      nextStep();
+    });
+    ```
+  </Step>
+</Steps>
+
+## Event Scheduling
+
+**File**: `src/presentation/event-scheduler.ts`
+
+Maps triggers to word positions and schedules execution.
+
+### Data Structure
+
+```typescript
+type ScheduledEvent = {
+  readonly wordIndex: number;
+  readonly trigger: TriggerVerb;
+};
+```
+
+Events are sorted by `wordIndex`.
+
+### Scheduling Algorithm
+
+1. For each trigger in narration:
+   - Compute word position (sum of word counts before trigger)
+   - Store `{ wordIndex, trigger }`
+2. Sort events by word index
+3. As playback progresses, check if current word index has passed any events
+4. If yes, execute trigger
+
+### Example
+
+Narration:
+
+```markdown
+{{show: code-a}} Here is some code. {{focus: line-1}} This line is important.
+```
+
+Word timings:
+
+```
+0: "Here"
+1: "is"
+2: "some"
+3: "code"
+4: "This"
+5: "line"
+6: "is"
+7: "important"
+```
+
+Scheduled events:
+
+```typescript
+[
+  { wordIndex: 0, trigger: { verb: 'show', target: 'code-a' } },
+  { wordIndex: 4, trigger: { verb: 'focus', target: 'line-1' } },
+]
+```
+
+As word index advances:
+
+- Word 0: Execute `show: code-a`
+- Word 4: Execute `focus: line-1`
+
+## Scene State Management
+
+**File**: `src/presentation/resolve-scene-at.ts`
+
+Computes the scene state at a given word index.
+
+### Scene State Structure
+
+```typescript
+type SceneState = {
+  readonly visible: readonly string[];  // Block names
+  readonly focused: string | null;  // Focused block/region
+  readonly split: boolean;  // Split-screen mode
+  readonly zoom: number;  // Zoom level
+  readonly enterEffects: readonly SlotEnterEffect[];  // Animations
+};
+```
+
+### Resolving Scene State
+
+Given a word index, replay all triggers up to that point:
+
+```typescript
+function resolveSceneAt(step: LessonStep, wordIndex: number): SceneState {
+  let state: SceneState = INITIAL_STATE;
+
+  for (const event of getEventsUpTo(wordIndex)) {
+    state = applyTrigger(state, event.trigger);
+  }
+
+  return state;
+}
+```
+
+This enables seeking: jump to any word, resolve scene state, and render.
+
+## Animation System
+
+**File**: `src/presentation/animation-variants.ts`
+
+Defines Motion animation variants for enter/exit effects.
+
+### Animation Variants
+
+Each effect has enter/exit variants:
+
+```typescript
+const fadeVariants = {
+  enter: { opacity: 1, transition: { duration: 0.3 } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
+};
+
+const slideVariants = {
+  enter: { x: 0, transition: { type: 'spring', stiffness: 300 } },
+  exit: { x: -100, transition: { duration: 0.2 } },
+};
+```
+
+### Custom Animations
+
+Triggers can override default animations:
+
+```markdown
+{{show: code-block slide 0.5s ease-out}}
+```
+
+Parsed to:
+
+```typescript
+{
+  verb: 'show',
+  target: 'code-block',
+  animation: {
+    kind: 'custom',
+    effect: 'slide',
+    durationS: 0.5,
+    easing: 'ease-out',
+  },
+}
+```
+
+The stage applies this animation:
+
+```tsx
+<motion.div
+  initial="exit"
+  animate="enter"
+  exit="exit"
+  variants={getVariants(animation)}
+>
+  <VisualizationBlock />
+</motion.div>
+```
+
+## Stage Rendering
+
+**File**: `src/presentation/Stage.tsx`
+
+The stage is the main rendering surface for visualizations.
+
+### Stage Layout
+
+- **Default mode**: Single block centered
+- **Split mode**: Multiple blocks side-by-side
+
+### Rendering Logic
+
+```tsx
+export function Stage() {
+  const sceneState = usePresentationStore((s) => getCurrentScene(s));
+
+  return (
+    <div className="stage">
+      <AnimatePresence mode="popLayout">
+        {sceneState.visible.map((blockName) => (
+          <motion.div
+            key={blockName}
+            variants={getEnterEffect(blockName)}
+            initial="exit"
+            animate="enter"
+            exit="exit"
+          >
+            <VisualizationBlock name={blockName} />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+```
+
+**`AnimatePresence`**: Handles enter/exit animations for blocks.
+
+**`VisualizationBlock`**: Renders the appropriate component (Code, Data, Diagram, etc.) based on block type.
+
+## User Controls
+
+**File**: `src/presentation/Controls.tsx`
+
+Provides playback controls:
+
+- **Play/Pause**: Toggle playback
+- **Skip forward/backward**: Jump to next/previous step
+- **Seek bar**: Scrub through narration
+- **Playback rate**: 0.5x, 1x, 1.5x, 2x
+- **Step navigation**: Jump to specific step
+
+### Seek Behavior
+
+When user seeks:
+
+1. Pause audio
+2. Compute word index for new position
+3. Update `currentWordIndex`
+4. Resolve scene state at new word index
+5. Render new scene
+6. Resume playback at new position
+
+```typescript
+function handleSeek(positionMs: number) {
+  const wordIndex = findWordAtPosition(positionMs, wordTimings);
+  usePresentationStore.getState().setWordIndex(wordIndex);
+  audioPlayer.seek(positionMs / 1000);
+}
+```
+
+## Narration Text Display
+
+**File**: `src/presentation/NarrationText.tsx`
+
+Displays narration text with word-level highlighting.
+
+### Highlighting Current Word
+
+```tsx
+export function NarrationText() {
+  const narration = usePresentationStore((s) => getCurrentNarration(s));
+  const currentWordIndex = usePresentationStore((s) => s.currentWordIndex);
+
+  return (
+    <div>
+      {narration.words.map((word, index) => (
+        <span
+          key={index}
+          className={index === currentWordIndex ? 'highlight' : ''}
+        >
+          {word}{' '}
+        </span>
+      ))}
+    </div>
+  );
+}
+```
+
+The highlighted word updates in sync with audio.
+
+## TTS Integration
+
+**Location**: `src/tts/`
+
+### Synthesis
+
+**File**: `src/tts/synthesize.ts`
+
+Invokes backend TTS command:
+
+```typescript
+export async function synthesize(text: string) {
+  return await invoke<{
+    audioBase64: string;
+    wordTimings: WordTiming[];
+  }>('synthesize', { text });
+}
+```
+
+### Audio Playback
+
+**File**: `src/tts/audio-player.ts`
+
+Wraps Howler.js:
+
+```typescript
+export function createAudioPlayer(audioBase64: string, callbacks: Callbacks) {
+  const sound = new Howl({
+    src: [`data:audio/wav;base64,${audioBase64}`],
+    onplay: callbacks.onPlay,
+    onpause: callbacks.onPause,
+    onend: callbacks.onEnd,
+  });
+
+  return {
+    play: () => sound.play(),
+    pause: () => sound.pause(),
+    seek: (positionS: number) => sound.seek(positionS),
+    rate: (rate: number) => sound.rate(rate),
+  };
+}
+```
+
+### Prefetching
+
+**File**: `src/tts/use-prefetch-tts.ts`
+
+Prefetches TTS audio for all narration blocks using React Query:
+
+```typescript
+export function usePrefetchAllAudio(lesson: ParsedLesson) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    lesson.steps.forEach((step) => {
+      step.narration.forEach((block) => {
+        queryClient.prefetchQuery({
+          queryKey: ['tts', block.text],
+          queryFn: () => synthesize(block.text),
+        });
+      });
+    });
+  }, [lesson]);
+}
+```
+
+This ensures smooth playback without synthesis delays.
+
+## Performance Optimizations
+
+- **React Query caching**: TTS audio cached per narration text
+- **Lazy rendering**: Visualization blocks only render when visible
+- **RequestAnimationFrame**: Word position updates throttled to 60fps
+- **Debounced seeks**: Avoid rapid scene recomputation during scrubbing
+
+## Future Enhancements
+
+- **Subtitle track**: Display narration text with word highlighting (already implemented)
+- **Keyboard shortcuts**: Space to play/pause, arrow keys to skip
+- **Chapter markers**: Visual markers for each step on seek bar
+- **Auto-advance**: Option to auto-advance to next lesson
+- **Accessibility**: Keyboard navigation, screen reader support
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Parser" icon="code" href="/development/parser">
+    Understand how markdown becomes IR
+  </Card>
+  <Card title="Frontend" icon="browser" href="/development/frontend">
+    Explore the React frontend
+  </Card>
+  <Card title="Backend" icon="server" href="/development/backend">
+    Dive into the Rust backend
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/development/architecture">
+    High-level system overview
+  </Card>
+</CardGroup>

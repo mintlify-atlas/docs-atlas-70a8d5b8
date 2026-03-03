@@ -1,0 +1,208 @@
+---
+title: Narration Best Practices
+description: Write narration that sounds natural, synchronizes with visuals, and teaches effectively
+---
+
+Narration is the hardest part of authoring Handhold courses—and the most important. You're not writing a textbook; you're narrating a film. The voice should sound like an expert explaining something to a curious colleague over coffee: informal but precise, confident but not condescending.
+
+## Voice and Tone
+
+Use "you" and "we." Ask questions and answer them. Use contractions. Let silence (paragraph breaks) do work.
+
+**Good:**
+> You have a list of a million names and you need to find one. Starting at the front and checking each entry could take a million steps. Hash maps do it in one.
+
+**Bad:**
+> Hash maps are a fundamental data structure that provide O(1) average-case lookup time using a hash function to compute array indices from key values.
+
+The first version has a problem, tension, and resolution in three sentences. The second is a definition. Definitions don't create motivation. Problems do.
+
+## Sentence Rhythm
+
+Short declarative sentences form the backbone. Vary length to create rhythm:
+
+- **Punch** (3-5 words)
+- **Explain the thing** (8-15 words)  
+- **Punch again** (3-5 words)
+- **Longer sentence** that builds on the previous two and adds nuance (15-25 words)
+
+Example from the Dijkstra course:
+> The greedy approach fails. Picking the nearest neighbor doesn't guarantee the shortest path. We need something smarter.
+
+Three sentences: short (4), medium (9), short (4). The medium sentence does the explaining. The short ones frame it.
+
+## Questions Create Anticipation
+
+Rhetorical questions followed by immediate answers are powerful narration tools:
+
+> Why 31? Because it's an odd prime. Multiplying by an even number loses information—the low bit is always zero. An odd prime distributes hash values more uniformly.
+
+The question creates a gap. The listener's brain leans in to fill it. The answer satisfies.
+
+Use questions to:
+- Introduce a new concept: "What happens if two keys hash to the same index?"
+- Challenge an assumption: "Looks fine, right? But try clicking it."
+- Create suspense: "The actual shortest path costs 9. How?"
+
+## Transitions
+
+Bridge phrases connect paragraphs without losing momentum:
+
+- **Contrast**: "But look again." / "But here's the thing."
+- **Progression**: "Now the key step." / "Next." / "One more."
+- **Revelation**: "Here's why." / "The fix isn't what you'd expect."
+- **Application**: "Try it." / "Click the dismiss button."
+
+<Warning>
+Avoid academic transitions: "Furthermore," "Additionally," "In conclusion," "It should be noted that."
+</Warning>
+
+## Writing for Text-to-Speech
+
+The narration is read by a TTS engine. This imposes specific constraints.
+
+### Spell Things Out
+
+| Written | TTS will say | Write instead |
+|---------|--------------|---------------|
+| `O(n)` | "oh en" or "oh parenthesis en" | "O of n" or "linear time" |
+| `2^6` | "two caret six" | "two to the sixth power" |
+| `HTTP` | varies by engine | "H-T-T-P" or "an HTTP request" |
+| `&&` | "ampersand ampersand" | "and" |
+| `===` | "equals equals equals" | "strict equality" or "triple equals" |
+
+### Introduce Terms Before Naming Them
+
+Plain English first, then the technical term:
+
+> Two keys land in the same slot. This is called a **collision**.
+
+Not:
+> A collision occurs when two keys hash to the same index.
+
+The first version: concept first, name second. The listener absorbs the concept before attaching a label.
+
+### Avoid Multi-Clause Sentences
+
+TTS doesn't pause the way a human narrator does at commas. Long compound sentences blur together.
+
+**Bad:**
+> The function takes the key, computes a hash value using the polynomial rolling hash algorithm, and then applies the modulo operator to map the result into the valid index range of the backing array.
+
+**Good:**
+> The function takes a key. It computes a hash value. Then it maps that value to an array index using modulo.
+
+Three sentences instead of one. Each lands before the next starts.
+
+## The Mirror Principle
+
+<Warning>
+This is the single most important rule in Handhold authoring.
+</Warning>
+
+**What is spoken must be what is shown.** At all times. The screen is a mirror of the narration.
+
+The moment you say "the loop," the loop should be focused. Not the line before it. Not the function it's inside. The loop.
+
+The moment you say "notice the return value," that line should be highlighted and possibly annotated.
+
+There is zero tolerance for misalignment. If the audience hears "the hash step" while looking at the initialization code, you've lost them.
+
+### Never Talk About Something Invisible
+
+If a block isn't on screen, you can't talk about it. Period.
+
+**Bad sequence:**
+```markdown
+This function uses a priority queue internally.
+{{show: priority-queue}}
+Here it is.
+```
+
+The listener hears "priority queue" and looks at the screen. Nothing's there. By the time it appears, the moment is gone.
+
+**Good sequence:**
+```markdown
+{{show: priority-queue slide 0.3s}} This function uses a priority queue. {{focus: enqueue}} Items go in sorted by distance.
+```
+
+The block appears as the sentence starts. By the time "priority queue" is spoken, the listener can see it.
+
+### Never Show Something Without Explaining It
+
+If a block appears, the narration must describe what the listener is seeing.
+
+**Bad:**
+```markdown
+{{show: hash-fn}} {{show: buckets}} Now let's think about what happens with more keys.
+```
+
+Two blocks appear. The narration talks about neither. What is the listener supposed to look at?
+
+**Good:**
+```markdown
+{{show: hash-fn}} Here's our hash function. {{focus: signature}} It takes a string and returns a number.
+```
+
+One block. Explained immediately. Focused on the relevant part.
+
+## Trigger Placement
+
+Triggers fire at their word position in the narration. Place `{{focus: X}}` immediately before the words that describe X:
+
+```markdown
+{{focus: init}} We create a variable to build up the result.
+```
+
+Focus fires → "We create a variable" is spoken → the listener sees the init region highlighted while hearing about creating a variable.
+
+### Multiple Triggers on One Position
+
+This is normal and expected. A single narration beat often needs multiple visual changes:
+
+```markdown
+{{focus: sig}} {{zoom: 1.2x}} {{annotate: sig "The signature"}} This function takes a string and returns an integer.
+```
+
+Three things happen at once: focus shifts, zoom activates, annotation appears. All before "This function" is spoken.
+
+## Annotation Text
+
+Annotations are floating labels. They should be short, sharp, and intent-focused.
+
+### Length: 2-5 Words
+
+**Good:** `"The invariant"`, `"Greedy choice"`, `"Race condition"`, `"Never revisit"`
+
+**Bad:** `"This is where we check if the path is shorter"`, `"The main loop that processes each node"`
+
+### Content: Intent, Not Description
+
+The annotation tells you WHY this region matters, not WHAT it contains. The code already shows what it contains.
+
+<Tip>
+**Good:** `"Cache key"` (why this value exists)  
+**Bad:** `"The query key array"` (what it is—the code already says this)
+</Tip>
+
+### Action Pairs
+
+Some annotations work in pairs that name a relationship:
+
+- `"Read"` and `"Write"`
+- `"Enter"` and `"Exit"`
+- `"Start"` and `"Destination"`
+- `"Before"` and `"After"`
+- `"Problem"` and `"Solution"`
+
+### Results
+
+Occasionally, an annotation shows a computed result to prove a point:
+
+- `"Total: 9"`
+- `"Cost so far: 3"`
+- `"2^6 = 64"`
+
+<Tip>
+Use sparingly. Most annotations should be concept labels, not data.
+</Tip>
